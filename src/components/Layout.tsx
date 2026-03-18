@@ -65,7 +65,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
           <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
             <TrendingUp size={20} className="text-white" />
           </div>
-          <span className="font-bold text-lg tracking-tight">TradeZella</span>
+          <span className="font-bold text-lg tracking-tight">MicroZella</span>
         </div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-zinc-400">
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -81,7 +81,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
           <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
             <TrendingUp size={24} className="text-white" />
           </div>
-          <span className="font-bold text-xl tracking-tight text-white">TradeZella</span>
+          <span className="font-bold text-xl tracking-tight text-white">MicroZella</span>
         </div>
 
         <button

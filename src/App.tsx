@@ -71,11 +71,11 @@ const LandingPage: React.FC = () => {
           </div>
           
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-tight animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-            Journal like a <span className="text-emerald-500">Professional</span> Trader.
+            Journal like a <span className="text-emerald-500">MicroZella</span> Pro.
           </h1>
           
           <p className="text-xl text-zinc-400 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-            Track your performance, identify your edge, and eliminate mistakes with the most powerful trading journal for retail traders.
+            Track your performance, identify your edge, and eliminate mistakes with MicroZella—the most powerful trading journal for retail traders.
           </p>
         </div>
 

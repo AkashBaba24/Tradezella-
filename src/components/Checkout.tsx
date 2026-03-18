@@ -6,7 +6,7 @@ const Checkout: React.FC = () => {
   const [formData, setFormData] = useState({
     customerName: '',
     customerEmail: '',
-    product: 'Pro Trading Journal (Annual)',
+    product: 'MicroZella Pro (Annual)',
     amount: 99.99,
   });
   const [loading, setLoading] = useState(false);
@@ -39,7 +39,7 @@ const Checkout: React.FC = () => {
       setFormData({
         customerName: '',
         customerEmail: '',
-        product: 'Pro Trading Journal (Annual)',
+        product: 'MicroZella Pro (Annual)',
         amount: 99.99,
       });
     } catch (err) {
@@ -128,8 +128,8 @@ const Checkout: React.FC = () => {
                 }}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all appearance-none"
               >
-                <option value="Pro Trading Journal (Annual)">Pro Trading Journal (Annual) - $99.99</option>
-                <option value="Pro Trading Journal (Monthly)">Pro Trading Journal (Monthly) - $12.99</option>
+                <option value="MicroZella Pro (Annual)">MicroZella Pro (Annual) - $99.99</option>
+                <option value="MicroZella Pro (Monthly)">MicroZella Pro (Monthly) - $12.99</option>
                 <option value="Advanced Analytics Add-on">Advanced Analytics Add-on - $49.99</option>
               </select>
             </div>
