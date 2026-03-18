@@ -124,6 +124,98 @@ app.patch("/api/orders/:id", async (req, res) => {
   }
 });
 
+// API route to fetch all products
+app.get("/api/products", async (req, res) => {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return res.status(503).json({ error: "Supabase is not configured." });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (error) {
+      // If table doesn't exist, return empty array instead of error to avoid crashing UI
+      if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+        return res.json([]);
+      }
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// API route to update or create a product
+app.post("/api/products", async (req, res) => {
+  const { id, name, price, description } = req.body;
+
+  if (!name || price === undefined) {
+    return res.status(400).json({ error: "Missing name or price" });
+  }
+
+  const supabase = getSupabase();
+  if (!supabase) {
+    return res.status(503).json({ error: "Supabase is not configured." });
+  }
+
+  try {
+    let result;
+    if (id) {
+      // Update
+      result = await supabase
+        .from("products")
+        .update({ name, price, description })
+        .eq("id", id)
+        .select();
+    } else {
+      // Create
+      result = await supabase
+        .from("products")
+        .insert([{ name, price, description }])
+        .select();
+    }
+
+    if (result.error) {
+      return res.status(500).json({ error: result.error.message });
+    }
+
+    res.json({ message: "Product saved successfully", data: result.data });
+  } catch (err) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// API route to delete a product
+app.delete("/api/products/:id", async (req, res) => {
+  const { id } = req.params;
+
+  const supabase = getSupabase();
+  if (!supabase) {
+    return res.status(503).json({ error: "Supabase is not configured." });
+  }
+
+  try {
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json({ message: "Product deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

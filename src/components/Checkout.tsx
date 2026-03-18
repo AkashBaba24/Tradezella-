@@ -1,17 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShoppingCart, CreditCard, Package, User, Mail, DollarSign, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '../utils';
 
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  description?: string;
+}
+
 const Checkout: React.FC = () => {
+  const [products, setProducts] = useState<Product[]>([]);
   const [formData, setFormData] = useState({
     customerName: '',
     customerEmail: '',
-    product: 'MicroZella Pro (Annual)',
-    amount: 99.99,
+    product: '',
+    amount: 0,
   });
   const [loading, setLoading] = useState(false);
+  const [fetchingProducts, setFetchingProducts] = useState(true);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch('/api/products');
+        if (!response.ok) throw new Error('Failed to fetch products');
+        
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          setProducts(data);
+          
+          // Set default product if available
+          if (data.length > 0) {
+            setFormData(prev => ({
+              ...prev,
+              product: data[0].name,
+              amount: data[0].price
+            }));
+          } else {
+            // Fallback to defaults if no products in DB
+            setFormData(prev => ({
+              ...prev,
+              product: 'MicroZella Pro (Annual)',
+              amount: 99.99
+            }));
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        // Fallback
+        setFormData(prev => ({
+          ...prev,
+          product: 'MicroZella Pro (Annual)',
+          amount: 99.99
+        }));
+      } finally {
+        setFetchingProducts(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,21 +169,43 @@ const Checkout: React.FC = () => {
                 <Package size={14} className="text-emerald-500" />
                 Select Product
               </label>
-              <select
-                value={formData.product}
-                onChange={(e) => {
-                  const product = e.target.value;
-                  let amount = 99.99;
-                  if (product.includes('Monthly')) amount = 12.99;
-                  else if (product.includes('Analytics')) amount = 49.99;
-                  setFormData({ ...formData, product, amount });
-                }}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all appearance-none"
-              >
-                <option value="MicroZella Pro (Annual)">MicroZella Pro (Annual) - $99.99</option>
-                <option value="MicroZella Pro (Monthly)">MicroZella Pro (Monthly) - $12.99</option>
-                <option value="Advanced Analytics Add-on">Advanced Analytics Add-on - $49.99</option>
-              </select>
+              {fetchingProducts ? (
+                <div className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-zinc-500 flex items-center gap-2">
+                  <Loader2 size={16} className="animate-spin" />
+                  Loading products...
+                </div>
+              ) : (
+                <select
+                  value={formData.product}
+                  onChange={(e) => {
+                    const productName = e.target.value;
+                    const selectedProduct = products.find(p => p.name === productName);
+                    
+                    if (selectedProduct) {
+                      setFormData({ ...formData, product: productName, amount: selectedProduct.price });
+                    } else {
+                      // Handle fallback cases
+                      let amount = 99.99;
+                      if (productName.includes('Monthly')) amount = 12.99;
+                      else if (productName.includes('Analytics')) amount = 49.99;
+                      setFormData({ ...formData, product: productName, amount });
+                    }
+                  }}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all appearance-none"
+                >
+                  {products.length > 0 ? (
+                    products.map(p => (
+                      <option key={p.id} value={p.name}>{p.name} - ${p.price}</option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="MicroZella Pro (Annual)">MicroZella Pro (Annual) - $99.99</option>
+                      <option value="MicroZella Pro (Monthly)">MicroZella Pro (Monthly) - $12.99</option>
+                      <option value="Advanced Analytics Add-on">Advanced Analytics Add-on - $49.99</option>
+                    </>
+                  )}
+                </select>
+              )}
             </div>
 
             {error && (
