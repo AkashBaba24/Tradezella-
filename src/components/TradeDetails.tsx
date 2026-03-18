@@ -176,38 +176,43 @@ const TradeDetails: React.FC<TradeDetailsProps> = ({ trade, onClose, onEdit, onD
               {/* Screenshot Section */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Trade Screenshot</h3>
-                  {trade.screenshots?.[0] && (
-                    <button 
-                      onClick={() => setFullScreenImage(trade.screenshots![0])}
-                      className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1 font-bold bg-emerald-500/5 px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      View Full Screen <Eye size={12} />
-                    </button>
+                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Trade Screenshots</h3>
+                  {trade.screenshots && trade.screenshots.length > 0 && (
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                      {trade.screenshots.length} {trade.screenshots.length === 1 ? 'Image' : 'Images'}
+                    </span>
                   )}
                 </div>
                 
-                {trade.screenshots?.[0] ? (
-                  <div 
-                    onClick={() => setFullScreenImage(trade.screenshots![0])}
-                    className="relative group rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950 aspect-video cursor-zoom-in"
-                  >
-                    <img 
-                      src={trade.screenshots[0]} 
-                      alt="Trade Analysis" 
-                      className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-zinc-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <div className="bg-white/10 backdrop-blur-md p-3 rounded-full border border-white/20">
-                        <Eye className="text-white" size={24} />
+                {trade.screenshots && trade.screenshots.length > 0 ? (
+                  <div className={cn(
+                    "grid gap-4",
+                    trade.screenshots.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                  )}>
+                    {trade.screenshots.map((url, index) => (
+                      <div 
+                        key={index}
+                        onClick={() => setFullScreenImage(url)}
+                        className="relative group rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950 aspect-video cursor-zoom-in"
+                      >
+                        <img 
+                          src={url} 
+                          alt={`Trade Analysis ${index + 1}`} 
+                          className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-zinc-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="bg-white/10 backdrop-blur-md p-2 rounded-full border border-white/20">
+                            <Eye className="text-white" size={20} />
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="aspect-video rounded-2xl border-2 border-dashed border-zinc-800 flex flex-col items-center justify-center text-zinc-600">
                     <Layers size={48} className="mb-2 opacity-20" />
-                    <p className="text-sm font-medium">No screenshot provided for this trade</p>
+                    <p className="text-sm font-medium">No screenshots provided for this trade</p>
                   </div>
                 )}
               </div>

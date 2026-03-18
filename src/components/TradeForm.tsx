@@ -94,6 +94,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ trade, onSave, onClose }) => {
 
     onSave({
       ...formData,
+      screenshots: (formData.screenshots || []).filter(url => url.trim() !== ''),
       entryPrice: entry,
       exitPrice: exit,
       stopLoss: Number(formData.stopLoss),
@@ -274,18 +275,54 @@ const TradeForm: React.FC<TradeFormProps> = ({ trade, onSave, onClose }) => {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Screenshot URL</label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  placeholder="https://tradingview.com/x/..."
-                  value={formData.screenshots?.[0] || ''}
-                  onChange={(e) => setFormData({ ...formData, screenshots: [e.target.value] })}
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                />
-                <div className="p-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-zinc-500">
-                  <ImageIcon size={20} />
-                </div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Screenshot URLs (Max 5)</label>
+                {(formData.screenshots?.length || 0) < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, screenshots: [...(formData.screenshots || []), ''] })}
+                    className="text-[10px] font-bold text-emerald-500 hover:text-emerald-400 uppercase tracking-widest flex items-center gap-1"
+                  >
+                    + Add Screenshot
+                  </button>
+                )}
+              </div>
+              <div className="space-y-3">
+                {formData.screenshots?.map((url, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="https://tradingview.com/x/..."
+                      value={url}
+                      onChange={(e) => {
+                        const newScreenshots = [...(formData.screenshots || [])];
+                        newScreenshots[index] = e.target.value;
+                        setFormData({ ...formData, screenshots: newScreenshots });
+                      }}
+                      className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newScreenshots = (formData.screenshots || []).filter((_, i) => i !== index);
+                        setFormData({ ...formData, screenshots: newScreenshots });
+                      }}
+                      className="p-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-zinc-500 hover:text-red-500 hover:border-red-500/50 transition-all"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                ))}
+                {(formData.screenshots?.length || 0) === 0 && (
+                  <div 
+                    onClick={() => setFormData({ ...formData, screenshots: [''] })}
+                    className="border-2 border-dashed border-zinc-800 rounded-2xl p-6 flex flex-col items-center justify-center text-zinc-600 hover:border-zinc-700 hover:text-zinc-500 cursor-pointer transition-all"
+                  >
+                    <ImageIcon size={32} className="mb-2 opacity-20" />
+                    <p className="text-xs font-bold uppercase tracking-widest">No screenshots added (Optional)</p>
+                    <p className="text-[10px] mt-1">Click to add up to 5 chart links</p>
+                  </div>
+                )}
               </div>
             </div>
           </section>
