@@ -1,8 +1,9 @@
-import React from 'react';
-import { X, Calendar, Clock, Target, Shield, Brain, BookOpen, ExternalLink, TrendingUp, TrendingDown, DollarSign, Layers, Edit2, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Calendar, Clock, Target, Shield, Brain, BookOpen, ExternalLink, TrendingUp, TrendingDown, DollarSign, Layers, Edit2, Trash2, Eye } from 'lucide-react';
 import { Trade } from '../types';
 import { formatCurrency, cn } from '../utils';
 import { format, parseISO } from 'date-fns';
+import FullScreenImage from './FullScreenImage';
 
 interface TradeDetailsProps {
   trade: Trade;
@@ -12,6 +13,7 @@ interface TradeDetailsProps {
 }
 
 const TradeDetails: React.FC<TradeDetailsProps> = ({ trade, onClose, onEdit, onDelete }) => {
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const isProfit = (trade.pnl || 0) >= 0;
 
   return (
@@ -176,25 +178,31 @@ const TradeDetails: React.FC<TradeDetailsProps> = ({ trade, onClose, onEdit, onD
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Trade Screenshot</h3>
                   {trade.screenshots?.[0] && (
-                    <a 
-                      href={trade.screenshots[0]} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1 font-bold"
+                    <button 
+                      onClick={() => setFullScreenImage(trade.screenshots![0])}
+                      className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1 font-bold bg-emerald-500/5 px-3 py-1.5 rounded-lg transition-colors"
                     >
-                      Open Full Size <ExternalLink size={12} />
-                    </a>
+                      View Full Screen <Eye size={12} />
+                    </button>
                   )}
                 </div>
                 
                 {trade.screenshots?.[0] ? (
-                  <div className="relative group rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950 aspect-video">
+                  <div 
+                    onClick={() => setFullScreenImage(trade.screenshots![0])}
+                    className="relative group rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950 aspect-video cursor-zoom-in"
+                  >
                     <img 
                       src={trade.screenshots[0]} 
                       alt="Trade Analysis" 
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
                       referrerPolicy="no-referrer"
                     />
+                    <div className="absolute inset-0 bg-zinc-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="bg-white/10 backdrop-blur-md p-3 rounded-full border border-white/20">
+                        <Eye className="text-white" size={24} />
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="aspect-video rounded-2xl border-2 border-dashed border-zinc-800 flex flex-col items-center justify-center text-zinc-600">
@@ -233,6 +241,14 @@ const TradeDetails: React.FC<TradeDetailsProps> = ({ trade, onClose, onEdit, onD
           </button>
         </div>
       </div>
+
+      {fullScreenImage && (
+        <FullScreenImage 
+          src={fullScreenImage} 
+          alt={`${trade.symbol} Trade Screenshot`} 
+          onClose={() => setFullScreenImage(null)} 
+        />
+      )}
     </div>
   );
 };

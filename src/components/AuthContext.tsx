@@ -1,5 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { 
+  onAuthStateChanged, 
+  User, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile
+} from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { UserProfile } from '../types';
@@ -10,6 +19,8 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   signIn: () => Promise<void>;
+  signInWithEmail: (email: string, pass: string) => Promise<void>;
+  signUpWithEmail: (email: string, pass: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -26,21 +37,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userDoc.exists()) {
-          setProfile(userDoc.data() as UserProfile);
-        } else {
-          const newProfile: UserProfile = {
-            uid: currentUser.uid,
-            displayName: currentUser.displayName || 'Anonymous',
-            email: currentUser.email || '',
-            photoURL: currentUser.photoURL || undefined,
-            currency: 'USD',
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            role: 'user',
-          };
-          await setDoc(doc(db, 'users', currentUser.uid), newProfile);
-          setProfile(newProfile);
+        try {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            setProfile(userDoc.data() as UserProfile);
+          } else {
+            const newProfile: UserProfile = {
+              uid: currentUser.uid,
+              displayName: currentUser.displayName || 'Anonymous',
+              email: currentUser.email || '',
+              photoURL: currentUser.photoURL || undefined,
+              currency: 'USD',
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              role: 'user',
+            };
+            await setDoc(doc(db, 'users', currentUser.uid), newProfile);
+            setProfile(newProfile);
+          }
+        } catch (err) {
+          console.error("Error fetching/creating profile:", err);
         }
       } else {
         setProfile(null);
@@ -62,9 +77,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setError('The sign-in popup was blocked by your browser. Please allow popups for this site.');
       } else if (err.code === 'auth/cancelled-popup-request') {
         // User closed the popup, no need to show error
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('This domain is not authorized for Google Sign-In. Please check your Firebase Console settings.');
       } else {
         setError(err.message || 'An unexpected error occurred during sign in.');
       }
+    }
+  };
+
+  const signInWithEmail = async (email: string, pass: string) => {
+    try {
+      setError(null);
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch (err: any) {
+      console.error('Email sign in error:', err);
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setError('Invalid email or password.');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Too many failed attempts. Please try again later.');
+      } else {
+        setError(err.message || 'An error occurred during sign in.');
+      }
+      throw err;
+    }
+  };
+
+  const signUpWithEmail = async (email: string, pass: string, name: string) => {
+    try {
+      setError(null);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+      await updateProfile(userCredential.user, { displayName: name });
+      
+      // Profile will be created by the onAuthStateChanged listener
+    } catch (err: any) {
+      console.error('Email sign up error:', err);
+      if (err.code === 'auth/email-already-in-use') {
+        setError('This email is already in use.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('Password should be at least 6 characters.');
+      } else {
+        setError(err.message || 'An error occurred during sign up.');
+      }
+      throw err;
     }
   };
 
@@ -79,7 +133,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearError = () => setError(null);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, error, signIn, logout, clearError }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      profile, 
+      loading, 
+      error, 
+      signIn, 
+      signInWithEmail, 
+      signUpWithEmail, 
+      logout, 
+      clearError 
+    }}>
       {children}
     </AuthContext.Provider>
   );

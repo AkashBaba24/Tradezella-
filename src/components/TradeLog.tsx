@@ -10,7 +10,8 @@ import {
   ArrowDownRight,
   ChevronLeft,
   ChevronRight,
-  Eye
+  Eye,
+  Layers
 } from 'lucide-react';
 import { Trade } from '../types';
 import { formatCurrency, cn } from '../utils';
@@ -21,9 +22,10 @@ interface TradeLogProps {
   onEdit: (trade: Trade) => void;
   onDelete: (id: string) => void;
   onView: (trade: Trade) => void;
+  onViewFullScreen: (url: string) => void;
 }
 
-const TradeLog: React.FC<TradeLogProps> = ({ trades, onEdit, onDelete, onView }) => {
+const TradeLog: React.FC<TradeLogProps> = ({ trades, onEdit, onDelete, onView, onViewFullScreen }) => {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'long' | 'short'>('all');
 
@@ -84,6 +86,7 @@ const TradeLog: React.FC<TradeLogProps> = ({ trades, onEdit, onDelete, onView })
                 <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Exit</th>
                 <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Lots</th>
                 <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">P&L</th>
+                <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Screenshot</th>
                 <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
@@ -120,6 +123,25 @@ const TradeLog: React.FC<TradeLogProps> = ({ trades, onEdit, onDelete, onView })
                       {(trade.pnl || 0) >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                       {formatCurrency(trade.pnl || 0)}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {trade.screenshots?.[0] ? (
+                      <div 
+                        onClick={(e) => { e.stopPropagation(); onViewFullScreen(trade.screenshots![0]); }}
+                        className="w-10 h-10 rounded-lg overflow-hidden border border-zinc-800 bg-zinc-950 cursor-zoom-in hover:border-emerald-500/50 transition-colors group/thumb"
+                      >
+                        <img 
+                          src={trade.screenshots[0]} 
+                          alt="Thumbnail" 
+                          className="w-full h-full object-cover transition-transform group-hover/thumb:scale-110"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg border border-dashed border-zinc-800 flex items-center justify-center text-zinc-700">
+                        <Layers size={14} />
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
