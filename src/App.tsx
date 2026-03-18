@@ -10,6 +10,7 @@ import TradeForm from './components/TradeForm';
 import Journal from './components/Journal';
 import Settings from './components/Settings';
 import Checkout from './components/Checkout';
+import AdminDashboard from './components/AdminDashboard';
 import CalendarView from './components/CalendarView';
 import TradeDetails from './components/TradeDetails';
 import FullScreenImage from './components/FullScreenImage';
@@ -319,6 +320,7 @@ const AppContent: React.FC = () => {
       )}
       {activeTab === 'journal' && <Journal />}
       {activeTab === 'checkout' && <Checkout />}
+      {activeTab === 'admin' && <AdminDashboard />}
       {activeTab === 'settings' && <Settings />}
 
       {isTradeFormOpen && (

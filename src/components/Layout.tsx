@@ -10,7 +10,8 @@ import {
   PlusCircle,
   ShoppingCart,
   Menu,
-  X
+  X,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { cn } from '../utils';
@@ -56,6 +57,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
     { id: 'checkout', label: 'Join to Premium', icon: ShoppingCart },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
+
+  if (profile?.email === 'hp.akinur23@gmail.com') {
+    menuItems.push({ id: 'admin', label: 'Admin', icon: ShieldCheck });
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200 flex flex-col md:flex-row">
