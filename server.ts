@@ -71,6 +71,7 @@ app.post("/api/orders", async (req, res) => {
 
 // API route to fetch all orders (for admin)
 app.get("/api/orders", async (req, res) => {
+  console.log("GET /api/orders hit");
   const supabase = getSupabase();
   if (!supabase) {
     return res.status(503).json({ error: "Supabase is not configured." });
