@@ -28,7 +28,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ trade, onSave, onClose }) => {
     tags: [],
     screenshots: [],
     entryTime: new Date().toISOString().slice(0, 16),
-    exitTime: new Date().toISOString().slice(0, 16),
+    exitTime: '',
   });
 
   useEffect(() => {
