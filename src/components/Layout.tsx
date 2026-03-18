@@ -53,7 +53,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
     { id: 'trades', label: 'Trade Log', icon: History },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'journal', label: 'Journal', icon: BookOpen },
-    { id: 'checkout', label: 'Checkout', icon: ShoppingCart },
+    { id: 'checkout', label: 'Join to Premium', icon: ShoppingCart },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 

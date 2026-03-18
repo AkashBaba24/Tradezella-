@@ -73,7 +73,7 @@ const Checkout: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header>
-        <h1 className="text-3xl font-bold text-white mb-2">Checkout</h1>
+        <h1 className="text-3xl font-bold text-white mb-2">Join to Premium</h1>
         <p className="text-zinc-400">Upgrade your trading experience with our premium tools.</p>
       </header>
 
