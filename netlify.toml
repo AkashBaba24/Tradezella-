@@ -6,6 +6,9 @@
 [build.environment]
   NETLIFY_NEXT_PLUGIN_SKIP = "true"
 
+[functions]
+  external_node_modules = ["lightningcss"]
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
