@@ -1,0 +1,96 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile and preferences.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "photoURL": { "type": "string" },
+        "currency": { "type": "string", "enum": ["USD", "EUR", "GBP", "JPY"] },
+        "timezone": { "type": "string" },
+        "riskPerTrade": { "type": "number", "description": "Risk percentage per trade." },
+        "dailyProfitTarget": { "type": "number" },
+        "weeklyProfitTarget": { "type": "number" },
+        "role": { "type": "string", "enum": ["user", "admin"] }
+      },
+      "required": ["displayName", "email"]
+    },
+    "Trade": {
+      "title": "Trade Entry",
+      "description": "A single trade entry.",
+      "type": "object",
+      "properties": {
+        "symbol": { "type": "string" },
+        "direction": { "type": "string", "enum": ["long", "short"] },
+        "entryPrice": { "type": "number" },
+        "exitPrice": { "type": "number" },
+        "stopLoss": { "type": "number" },
+        "targetPrice": { "type": "number" },
+        "lots": { "type": "number" },
+        "contractSize": { "type": "number" },
+        "fees": { "type": "number" },
+        "setup": { "type": "string" },
+        "planFollowed": { "type": "boolean" },
+        "mentalState": { "type": "string" },
+        "keyLesson": { "type": "string" },
+        "notes": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "screenshots": { "type": "array", "items": { "type": "string" } },
+        "entryTime": { "type": "string", "format": "date-time" },
+        "exitTime": { "type": "string", "format": "date-time" },
+        "pnl": { "type": "number" },
+        "roi": { "type": "number" },
+        "riskReward": { "type": "number" },
+        "uid": { "type": "string" }
+      },
+      "required": ["symbol", "direction", "entryPrice", "lots", "entryTime", "uid"]
+    },
+    "DailyJournal": {
+      "title": "Daily Journal",
+      "description": "Daily reflections and plans.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "content": { "type": "string" },
+        "mood": { "type": "string" },
+        "plan": { "type": "string" },
+        "uid": { "type": "string" }
+      },
+      "required": ["date", "content", "uid"]
+    },
+    "Goal": {
+      "title": "Goal",
+      "description": "Trading goals and targets.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["daily", "weekly", "monthly"] },
+        "target": { "type": "number" },
+        "current": { "type": "number" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "uid": { "type": "string" }
+      },
+      "required": ["type", "target", "startDate", "endDate", "uid"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile document."
+    },
+    "/users/{userId}/trades/{tradeId}": {
+      "schema": "Trade",
+      "description": "User's trade entries."
+    },
+    "/users/{userId}/journals/{journalId}": {
+      "schema": "DailyJournal",
+      "description": "User's daily journal entries."
+    },
+    "/users/{userId}/goals/{goalId}": {
+      "schema": "Goal",
+      "description": "User's trading goals."
+    }
+  }
+}

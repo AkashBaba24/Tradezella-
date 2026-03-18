@@ -1,0 +1,175 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (matches auth.uid)
+    // Fields:
+    //   - displayName: string (required)
+    //   - email: string (required, email format)
+    //   - photoURL: string (optional)
+    //   - currency: string (optional, enum: ["USD", "EUR", "GBP", "JPY"])
+    //   - timezone: string (optional)
+    //   - riskPerTrade: number (optional)
+    //   - dailyProfitTarget: number (optional)
+    //   - weeklyProfitTarget: number (optional)
+    //   - role: string (optional, enum: ["user", "admin"])
+    //
+    // Collection: users/{userId}/trades
+    // Document ID: tradeId
+    // Fields:
+    //   - symbol: string (required)
+    //   - direction: string (required, enum: ["long", "short"])
+    //   - entryPrice: number (required)
+    //   - exitPrice: number (optional)
+    //   - stopLoss: number (optional)
+    //   - targetPrice: number (optional)
+    //   - lots: number (required)
+    //   - contractSize: number (optional)
+    //   - fees: number (optional)
+    //   - setup: string (optional)
+    //   - planFollowed: bool (optional)
+    //   - mentalState: string (optional)
+    //   - keyLesson: string (optional)
+    //   - notes: string (optional)
+    //   - tags: list (optional)
+    //   - screenshots: list (optional)
+    //   - entryTime: timestamp (required)
+    //   - exitTime: timestamp (optional)
+    //   - pnl: number (optional)
+    //   - roi: number (optional)
+    //   - riskReward: number (optional)
+    //   - uid: string (required, matches userId)
+    //
+    // Collection: users/{userId}/journals
+    // Document ID: journalId
+    // Fields:
+    //   - date: string (required, format: YYYY-MM-DD)
+    //   - content: string (required)
+    //   - mood: string (optional)
+    //   - plan: string (optional)
+    //   - uid: string (required, matches userId)
+    //
+    // Collection: users/{userId}/goals
+    // Document ID: goalId
+    // Fields:
+    //   - type: string (required, enum: ["daily", "weekly", "monthly"])
+    //   - target: number (required)
+    //   - current: number (optional)
+    //   - startDate: string (required)
+    //   - endDate: string (required)
+    //   - uid: string (required, matches userId)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "hp.akinur23@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['displayName', 'email']) &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
+             isValidEmail(data.email) &&
+             (!('currency' in data) || data.currency in ["USD", "EUR", "GBP", "JPY"]) &&
+             (!('role' in data) || data.role in ["user", "admin"]);
+    }
+
+    function isValidTrade(data) {
+      return hasRequiredFields(['symbol', 'direction', 'entryPrice', 'lots', 'entryTime', 'uid']) &&
+             data.symbol is string && data.symbol.size() > 0 && data.symbol.size() < 20 &&
+             data.direction in ["long", "short"] &&
+             data.entryPrice is number && data.entryPrice >= 0 &&
+             data.lots is number && data.lots > 0 &&
+             (!('contractSize' in data) || data.contractSize is number) &&
+             (!('setup' in data) || (data.setup is string && data.setup.size() < 100)) &&
+             (!('mentalState' in data) || (data.mentalState is string && data.mentalState.size() < 50)) &&
+             (!('keyLesson' in data) || (data.keyLesson is string && data.keyLesson.size() < 1000)) &&
+             (!('planFollowed' in data) || data.planFollowed is bool) &&
+             data.uid is string && data.uid == request.auth.uid;
+    }
+
+    function isValidJournal(data) {
+      return hasRequiredFields(['date', 'content', 'uid']) &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 10000 &&
+             data.uid is string && data.uid == request.auth.uid;
+    }
+
+    function isValidGoal(data) {
+      return hasRequiredFields(['type', 'target', 'startDate', 'endDate', 'uid']) &&
+             data.type in ["daily", "weekly", "monthly"] &&
+             data.target is number && data.target >= 0 &&
+             data.uid is string && data.uid == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Match Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isAdmin());
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+      allow delete: if isAdmin();
+
+      match /trades/{tradeId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidTrade(request.resource.data);
+        allow update: if isOwner(userId) && isValidTrade(request.resource.data);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /journals/{journalId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidJournal(request.resource.data);
+        allow update: if isOwner(userId) && isValidJournal(request.resource.data);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /goals/{goalId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidGoal(request.resource.data);
+        allow update: if isOwner(userId) && isValidGoal(request.resource.data);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    match /{path=**}/trades/{tradeId} {
+      allow read: if isAdmin();
+    }
+  }
+}
