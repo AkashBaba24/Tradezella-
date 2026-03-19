@@ -52,7 +52,18 @@ const AdminDashboard: React.FC = () => {
 
   const fetchOrders = async () => {
     try {
+      // First, check health
+      const healthCheck = await fetch('/api/health');
+      if (healthCheck.ok) {
+        const health = await healthCheck.json();
+        console.log('API Health Check:', health);
+      } else {
+        console.error('API Health Check failed:', healthCheck.status);
+      }
+
       const response = await fetch('/api/orders');
+      console.log('Fetch response URL:', response.url);
+      console.log('Fetch response headers:', Object.fromEntries(response.headers.entries()));
       if (!response.ok) throw new Error('Failed to fetch orders');
       
       const contentType = response.headers.get('content-type');
@@ -61,7 +72,8 @@ const AdminDashboard: React.FC = () => {
         setOrders(data);
       } else {
         const text = await response.text();
-        console.error('Expected JSON but got:', text.substring(0, 100));
+        console.error('Expected JSON but got:', text.substring(0, 500));
+        setError(`Server returned ${response.status} ${response.statusText} with content-type: ${contentType}. Current URL: ${window.location.href}. Check console for details.`);
         throw new Error('Server returned an invalid response format (expected JSON)');
       }
     } catch (err) {

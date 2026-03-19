@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import path from "path";
 import dotenv from "dotenv";
 
+console.log("Starting server.ts...");
 dotenv.config();
 
 export const app = express();
@@ -25,6 +26,15 @@ const getSupabase = () => {
 };
 
 app.use(express.json());
+
+// Health check route
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    env: process.env.NODE_ENV,
+    time: new Date().toISOString() 
+  });
+});
 
 // API route to handle order form submission to Supabase
 app.post("/api/orders", async (req, res) => {
@@ -214,6 +224,11 @@ app.delete("/api/products/:id", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: "Internal server error" });
   }
+});
+
+// Catch-all for undefined API routes to prevent them from returning HTML via Vite
+app.all("/api/*", (req, res) => {
+  res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
 });
 
 async function startServer() {
