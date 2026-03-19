@@ -3,11 +3,40 @@ import { createClient } from "@supabase/supabase-js";
 import path from "path";
 import dotenv from "dotenv";
 
+import fs from "fs";
+
 console.log("Starting server.ts...");
 dotenv.config();
 
+// Catch unhandled errors to prevent silent crashes
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION (v3):', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION (v3) at:', promise, 'reason:', reason);
+});
+
+console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+
 export const app = express();
 const PORT = 3000;
+
+// Check if we should be in development or production mode
+const distPath = path.join(process.cwd(), 'dist');
+const hasDist = fs.existsSync(distPath) && fs.existsSync(path.join(distPath, 'index.html'));
+const isDev = process.env.NODE_ENV !== "production" || !hasDist;
+
+console.log(`Mode: ${isDev ? 'Development (Vite)' : 'Production (Static)'}`);
+if (!isDev && !hasDist) {
+  console.warn("WARNING: NODE_ENV is 'production' but 'dist/index.html' is missing. Falling back to development mode.");
+}
+
+// Early test route
+app.get("/api/v3-test", (req, res) => {
+  console.log("GET /api/v3-test hit");
+  res.json({ message: "v3 test successful", env: process.env.NODE_ENV });
+});
 
 // Supabase client initialization (server-side to keep key hidden)
 let supabaseClient: any = null;
@@ -35,8 +64,10 @@ app.use(express.json());
 
 // Health check route
 app.get("/api/health", (req, res) => {
+  console.log("GET /api/health hit (v3)");
   res.json({ 
     status: "ok", 
+    version: "v3",
     env: process.env.NODE_ENV,
     time: new Date().toISOString(),
     supabaseConfigured: !!process.env.SUPABASE_URL && (!!process.env.SUPABASE_SERVICE_ROLE_KEY || !!process.env.SUPABASE_ANON_KEY)
@@ -45,6 +76,7 @@ app.get("/api/health", (req, res) => {
 
 // API route to handle order form submission to Supabase
 app.post("/api/orders", async (req, res) => {
+  console.log("POST /api/orders hit (v3)");
   const { customerName, customerEmail, product, amount, status } = req.body;
 
   if (!customerName || !customerEmail || !product || !amount) {
@@ -95,14 +127,16 @@ app.post("/api/orders", async (req, res) => {
 
 // API route to fetch all orders (for admin)
 app.get("/api/test", (req, res) => {
+  console.log("GET /api/test hit (v3)");
   res.json({ message: "API is working", time: new Date().toISOString() });
 });
 
 app.get("/api/orders", async (req, res) => {
-  console.log("GET /api/orders hit");
+  console.log(`GET /api/orders hit (v3) [${new Date().toISOString()}]`);
   const supabase = getSupabase();
   if (!supabase) {
-    return res.status(503).json({ error: "Supabase is not configured." });
+    console.error("Supabase not configured in GET /api/orders");
+    return res.status(503).json({ error: "Supabase is not configured. Check your environment variables." });
   }
 
   try {
@@ -112,18 +146,20 @@ app.get("/api/orders", async (req, res) => {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Supabase error fetching orders:", error);
+      console.error("Supabase error fetching orders (v3):", JSON.stringify(error, null, 2));
       // If table doesn't exist, return empty array instead of error to avoid crashing UI
-      if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+      if (error.code === 'PGRST116' || error.message.includes('does not exist') || error.message.includes('relation "orders" does not exist')) {
+        console.warn("Table 'orders' does not exist. Returning empty array.");
         return res.json([]);
       }
       return res.status(500).json({ error: error.message, details: error });
     }
 
+    console.log(`Successfully fetched ${data?.length || 0} orders (v3)`);
     res.json(data || []);
   } catch (err) {
-    console.error("Unexpected error fetching orders:", err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Unexpected error fetching orders (v3):", err);
+    res.status(500).json({ error: "Internal server error", details: err instanceof Error ? err.message : String(err) });
   }
 });
 
@@ -160,8 +196,10 @@ app.patch("/api/orders/:id", async (req, res) => {
 
 // API route to fetch all products
 app.get("/api/products", async (req, res) => {
+  console.log(`GET /api/products hit (v3) [${new Date().toISOString()}]`);
   const supabase = getSupabase();
   if (!supabase) {
+    console.error("Supabase not configured in GET /api/products");
     return res.status(503).json({ error: "Supabase is not configured." });
   }
 
@@ -172,15 +210,19 @@ app.get("/api/products", async (req, res) => {
       .order("name", { ascending: true });
 
     if (error) {
+      console.error("Supabase error fetching products (v3):", JSON.stringify(error, null, 2));
       // If table doesn't exist, return empty array instead of error to avoid crashing UI
-      if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+      if (error.code === 'PGRST116' || error.message.includes('does not exist') || error.message.includes('relation "products" does not exist')) {
+        console.warn("Table 'products' does not exist. Returning empty array.");
         return res.json([]);
       }
       return res.status(500).json({ error: error.message });
     }
 
+    console.log(`Successfully fetched ${data?.length || 0} products (v3)`);
     res.json(data);
   } catch (err) {
+    console.error("Unexpected error fetching products (v3):", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -280,12 +322,14 @@ app.delete("/api/products/:id", async (req, res) => {
 
 // Catch-all for undefined API routes to prevent them from returning HTML via Vite
 app.all("/api/*", (req, res) => {
-  res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
+  console.log(`404 API route hit (v3): ${req.method} ${req.url}`);
+  res.status(404).json({ error: `API route not found (v3): ${req.method} ${req.url}` });
 });
 
 async function startServer() {
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (isDev) {
+    console.log("Initializing Vite middleware (v3)...");
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -293,7 +337,7 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    console.log(`Serving static files from ${distPath} (v3)...`);
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
@@ -301,7 +345,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on http://localhost:${PORT} (v3)`);
   });
 }
 

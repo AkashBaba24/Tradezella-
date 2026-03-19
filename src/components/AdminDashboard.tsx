@@ -54,12 +54,23 @@ const AdminDashboard: React.FC = () => {
   const fetchOrders = async () => {
     const timestamp = Date.now();
     console.log(`fetchOrders called (v3) [${timestamp}]`);
+    
+    // Quick test of API connectivity
+    fetch(`/api/v3-test?t=${timestamp}`)
+      .then(r => r.json())
+      .then(d => console.log('API v3-test successful:', d))
+      .catch(e => console.error('API v3-test error:', e));
+
     try {
-      const response = await fetch(`/api/orders?t=${timestamp}`, { cache: 'no-store' });
+      const response = await fetch(`/api/orders?t=${timestamp}`, { 
+        cache: 'no-store',
+        headers: { 'Accept': 'application/json' }
+      });
       const contentType = response.headers.get('content-type');
       
+      const text = await response.text();
+      
       if (response.ok) {
-        const text = await response.text();
         try {
           const data = JSON.parse(text);
           setOrders(data);
@@ -67,15 +78,19 @@ const AdminDashboard: React.FC = () => {
         } catch (jsonErr) {
           console.error(`Failed to parse JSON response (v3) [${timestamp}]:`, text.substring(0, 500));
           if (text.includes('<!DOCTYPE html>') || text.includes('<html')) {
-            setError(`API Error (v3) [${timestamp}]: Received HTML instead of JSON. The server route might be missing or falling back to the SPA.`);
+            setError(`API Error (v3) [${timestamp}]: Received HTML instead of JSON. This usually means the server is down or the route is wrong. Check console for the HTML content.`);
           } else {
             setError(`API Error (v3) [${timestamp}]: Invalid JSON response. ${text.substring(0, 50).trim()}...`);
           }
         }
       } else {
-        const text = await response.text();
         console.error(`API Error ${response.status} (v3) [${timestamp}]:`, text.substring(0, 500));
-        setError(`API Error (v3) [${timestamp}]: ${response.status}. Check console for full response.`);
+        try {
+          const errorData = JSON.parse(text);
+          setError(`API Error (v3) [${timestamp}]: ${response.status} - ${errorData.error || 'Unknown error'}`);
+        } catch (e) {
+          setError(`API Error (v3) [${timestamp}]: ${response.status}. The server returned non-JSON content.`);
+        }
       }
     } catch (err) {
       console.error(`Error in fetchOrders (v3) [${timestamp}]:`, err);
