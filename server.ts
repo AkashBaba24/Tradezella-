@@ -94,6 +94,10 @@ app.post("/api/orders", async (req, res) => {
 });
 
 // API route to fetch all orders (for admin)
+app.get("/api/test", (req, res) => {
+  res.json({ message: "API is working", time: new Date().toISOString() });
+});
+
 app.get("/api/orders", async (req, res) => {
   console.log("GET /api/orders hit");
   const supabase = getSupabase();

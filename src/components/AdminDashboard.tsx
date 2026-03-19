@@ -52,38 +52,54 @@ const AdminDashboard: React.FC = () => {
   const [productForm, setProductForm] = useState<Product>({ name: '', price: 0, duration: '30 Days', description: '' });
 
   const fetchOrders = async () => {
+    const timestamp = Date.now();
+    console.log(`fetchOrders called (v3) [${timestamp}]`);
     try {
-      const response = await fetch('/api/orders');
+      const response = await fetch(`/api/orders?t=${timestamp}`, { cache: 'no-store' });
       const contentType = response.headers.get('content-type');
-      if (response.ok && contentType && contentType.includes('application/json')) {
-        const data = await response.json();
-        setOrders(data);
-        setError(null);
+      
+      if (response.ok) {
+        const text = await response.text();
+        try {
+          const data = JSON.parse(text);
+          setOrders(data);
+          setError(null);
+        } catch (jsonErr) {
+          console.error(`Failed to parse JSON response (v3) [${timestamp}]:`, text.substring(0, 500));
+          if (text.includes('<!DOCTYPE html>') || text.includes('<html')) {
+            setError(`API Error (v3) [${timestamp}]: Received HTML instead of JSON. The server route might be missing or falling back to the SPA.`);
+          } else {
+            setError(`API Error (v3) [${timestamp}]: Invalid JSON response. ${text.substring(0, 50).trim()}...`);
+          }
+        }
       } else {
         const text = await response.text();
-        console.error('Expected JSON but got:', text.substring(0, 500));
-        setError(`API Error: ${response.status}. Check console for full response.`);
+        console.error(`API Error ${response.status} (v3) [${timestamp}]:`, text.substring(0, 500));
+        setError(`API Error (v3) [${timestamp}]: ${response.status}. Check console for full response.`);
       }
     } catch (err) {
-      console.error('Error in fetchOrders:', err);
+      console.error(`Error in fetchOrders (v3) [${timestamp}]:`, err);
       if (!error) {
-        setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+        setError(err instanceof Error ? err.message : `An unexpected error occurred (v3) [${timestamp}]`);
       }
     }
   };
 
   const fetchProducts = async () => {
+    const timestamp = Date.now();
     try {
-      const response = await fetch('/api/products');
-      if (!response.ok) throw new Error('Failed to fetch products');
+      const response = await fetch(`/api/products?t=${timestamp}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Failed to fetch products: ${response.status}`);
       
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const data = await response.json();
+      const text = await response.text();
+      try {
+        const data = JSON.parse(text);
         setProducts(data);
+      } catch (jsonErr) {
+        console.error(`Failed to parse products JSON (v3) [${timestamp}]:`, text.substring(0, 500));
       }
     } catch (err) {
-      console.error('Error fetching products:', err);
+      console.error(`Error fetching products (v3) [${timestamp}]:`, err);
     }
   };
 
@@ -99,14 +115,15 @@ const AdminDashboard: React.FC = () => {
 
   const handleStatusUpdate = async (id: string, newStatus: 'approved' | 'rejected') => {
     setActionLoading(id);
+    const timestamp = Date.now();
     try {
-      const response = await fetch(`/api/orders/${id}`, {
+      const response = await fetch(`/api/orders/${id}?t=${timestamp}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
 
-      if (!response.ok) throw new Error('Failed to update status');
+      if (!response.ok) throw new Error(`Failed to update status: ${response.status}`);
       
       setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
     } catch (err) {
@@ -122,14 +139,15 @@ const AdminDashboard: React.FC = () => {
     const newPrice = Math.max(0, product.price + delta);
     setActionLoading(`price-${product.id}`);
     
+    const timestamp = Date.now();
     try {
-      const response = await fetch('/api/products', {
+      const response = await fetch(`/api/products?t=${timestamp}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...product, price: newPrice }),
       });
 
-      if (!response.ok) throw new Error('Failed to update price');
+      if (!response.ok) throw new Error(`Failed to update price: ${response.status}`);
       
       setProducts(prev => prev.map(p => p.id === product.id ? { ...p, price: newPrice } : p));
     } catch (err) {
@@ -142,14 +160,15 @@ const AdminDashboard: React.FC = () => {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading('product-save');
+    const timestamp = Date.now();
     try {
-      const response = await fetch('/api/products', {
+      const response = await fetch(`/api/products?t=${timestamp}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(productForm),
       });
 
-      if (!response.ok) throw new Error('Failed to save product');
+      if (!response.ok) throw new Error(`Failed to save product: ${response.status}`);
       
       await fetchProducts();
       setIsAddingProduct(false);
@@ -194,12 +213,13 @@ const AdminDashboard: React.FC = () => {
     if (!confirm('Are you sure you want to delete this plan?')) return;
     
     setActionLoading(id);
+    const timestamp = Date.now();
     try {
-      const response = await fetch(`/api/products/${id}`, {
+      const response = await fetch(`/api/products/${id}?t=${timestamp}`, {
         method: 'DELETE',
       });
 
-      if (!response.ok) throw new Error('Failed to delete product');
+      if (!response.ok) throw new Error(`Failed to delete product: ${response.status}`);
       
       setProducts(prev => prev.filter(p => p.id !== id));
     } catch (err) {

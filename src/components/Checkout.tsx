@@ -25,13 +25,14 @@ const Checkout: React.FC = () => {
 
   useEffect(() => {
     const fetchProducts = async () => {
+      const timestamp = Date.now();
       try {
-        const response = await fetch('/api/products');
-        if (!response.ok) throw new Error('Failed to fetch products');
+        const response = await fetch(`/api/products?t=${timestamp}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Failed to fetch products: ${response.status}`);
         
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const data = await response.json();
+        const text = await response.text();
+        try {
+          const data = JSON.parse(text);
           setProducts(data);
           
           // Set default product if available
@@ -49,9 +50,12 @@ const Checkout: React.FC = () => {
               amount: 19.99
             }));
           }
+        } catch (jsonErr) {
+          console.error(`Failed to parse products JSON in Checkout (v3) [${timestamp}]:`, text.substring(0, 500));
+          throw new Error('Invalid JSON response from server');
         }
       } catch (err) {
-        console.error('Error fetching products:', err);
+        console.error(`Error fetching products in Checkout (v3) [${timestamp}]:`, err);
         // Fallback
         setFormData(prev => ({
           ...prev,
@@ -72,7 +76,8 @@ const Checkout: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch('/api/orders', {
+      const timestamp = Date.now();
+      const response = await fetch(`/api/orders?t=${timestamp}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -80,7 +85,14 @@ const Checkout: React.FC = () => {
         body: JSON.stringify(formData),
       });
 
-      const result = await response.json();
+      const text = await response.text();
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (e) {
+        console.error(`Failed to parse order response JSON (v3) [${timestamp}]:`, text.substring(0, 500));
+        throw new Error('Invalid server response format');
+      }
 
       if (!response.ok) {
         const errorMessage = typeof result.error === 'string' ? result.error : (result.error?.message || 'Failed to submit order');
