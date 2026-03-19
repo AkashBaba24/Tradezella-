@@ -229,7 +229,9 @@ app.get("/api/products", async (req, res) => {
 
 // API route to update or create a product
 app.post("/api/products", async (req, res) => {
+  console.log(`POST /api/products hit (v3) [${new Date().toISOString()}]`);
   const { id, name, price, description, duration } = req.body;
+  console.log(`Product data:`, { id, name, price, description, duration });
 
   if (!name || price === undefined) {
     return res.status(400).json({ error: "Missing name or price" });
