@@ -17,7 +17,7 @@ import {
   Save,
   X
 } from 'lucide-react';
-import { cn, formatCurrency } from '../utils';
+import { cn, formatCurrency } from '../utils.ts';
 import { format, parseISO } from 'date-fns';
 
 interface Order {

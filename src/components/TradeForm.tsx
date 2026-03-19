@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Calculator, Tag as TagIcon, Image as ImageIcon } from 'lucide-react';
-import { Trade, TradeDirection } from '../types';
-import { cn } from '../utils';
+import { Trade, TradeDirection } from '../types.ts';
+import { cn } from '../utils.ts';
 
 interface TradeFormProps {
   trade?: Trade | null;

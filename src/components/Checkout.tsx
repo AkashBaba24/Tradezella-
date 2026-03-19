@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, CreditCard, Package, User, Mail, DollarSign, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { cn } from '../utils';
+import { cn } from '../utils.ts';
 
 interface Product {
   id: string;

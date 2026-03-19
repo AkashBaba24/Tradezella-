@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { X, Calendar, Clock, Target, Shield, Brain, BookOpen, ExternalLink, TrendingUp, TrendingDown, DollarSign, Layers, Edit2, Trash2, Eye } from 'lucide-react';
-import { Trade } from '../types';
-import { formatCurrency, cn } from '../utils';
+import { Trade } from '../types.ts';
+import { formatCurrency, cn } from '../utils.ts';
 import { format, parseISO } from 'date-fns';
-import FullScreenImage from './FullScreenImage';
+import FullScreenImage from './FullScreenImage.tsx';
 
 interface TradeDetailsProps {
   trade: Trade;
