@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { User, Shield, Bell, Globe, Save, CheckCircle } from 'lucide-react';
-import { useAuth } from './AuthContext.tsx';
+import { useAuth } from './AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase.ts';
-import { cn } from '../utils.ts';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { cn } from '../utils';
 
 const Settings: React.FC = () => {
   const { profile, user } = useAuth();

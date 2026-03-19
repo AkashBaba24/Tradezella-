@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-import { OperationType, FirestoreErrorInfo } from './types.ts';
+import { OperationType, FirestoreErrorInfo } from './types';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK

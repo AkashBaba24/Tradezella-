@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from './firebase.ts';
-import { AuthProvider, useAuth } from './components/AuthContext.tsx';
-import ErrorBoundary from './components/ErrorBoundary.tsx';
-import Layout from './components/Layout.tsx';
-import Dashboard from './components/Dashboard.tsx';
-import TradeLog from './components/TradeLog.tsx';
-import TradeForm from './components/TradeForm.tsx';
-import Journal from './components/Journal.tsx';
-import Settings from './components/Settings.tsx';
-import Checkout from './components/Checkout.tsx';
-import AdminDashboard from './components/AdminDashboard.tsx';
-import CalendarView from './components/CalendarView.tsx';
-import TradeDetails from './components/TradeDetails.tsx';
-import FullScreenImage from './components/FullScreenImage.tsx';
-import { Trade } from './types.ts';
+import { db, handleFirestoreError, OperationType } from './firebase';
+import { AuthProvider, useAuth } from './components/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
+import Layout from './components/Layout';
+import Dashboard from './components/Dashboard';
+import TradeLog from './components/TradeLog';
+import TradeForm from './components/TradeForm';
+import Journal from './components/Journal';
+import Settings from './components/Settings';
+import Checkout from './components/Checkout';
+import AdminDashboard from './components/AdminDashboard';
+import CalendarView from './components/CalendarView';
+import TradeDetails from './components/TradeDetails';
+import FullScreenImage from './components/FullScreenImage';
+import { Trade } from './types';
 import { TrendingUp, Shield, BarChart3, Zap, ArrowRight } from 'lucide-react';
 
 const LandingPage: React.FC = () => {

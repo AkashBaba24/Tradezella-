@@ -13,8 +13,8 @@ import {
   X,
   ShieldCheck
 } from 'lucide-react';
-import { useAuth } from './AuthContext.tsx';
-import { cn } from '../utils.ts';
+import { useAuth } from './AuthContext';
+import { cn } from '../utils';
 
 interface SidebarItemProps {
   icon: React.ElementType;

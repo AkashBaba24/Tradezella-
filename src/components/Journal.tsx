@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Save, Plus, BookOpen, Clock } from 'lucide-react';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, orderBy } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase.ts';
-import { useAuth } from './AuthContext.tsx';
-import { DailyJournal } from '../types.ts';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { useAuth } from './AuthContext';
+import { DailyJournal } from '../types';
 import { format, parseISO } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
-import { cn } from '../utils.ts';
+import { cn } from '../utils';
 
 const Journal: React.FC = () => {
   const { user } = useAuth();

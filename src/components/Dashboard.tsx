@@ -21,8 +21,8 @@ import {
   Bar,
   Cell
 } from 'recharts';
-import { Trade } from '../types.ts';
-import { formatCurrency, formatPercent, cn } from '../utils.ts';
+import { Trade } from '../types';
+import { formatCurrency, formatPercent, cn } from '../utils';
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 
 interface DashboardProps {

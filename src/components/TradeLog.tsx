@@ -13,8 +13,8 @@ import {
   Eye,
   Layers
 } from 'lucide-react';
-import { Trade } from '../types.ts';
-import { formatCurrency, cn } from '../utils.ts';
+import { Trade } from '../types';
+import { formatCurrency, cn } from '../utils';
 import { format, parseISO } from 'date-fns';
 
 interface TradeLogProps {
