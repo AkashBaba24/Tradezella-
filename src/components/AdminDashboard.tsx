@@ -53,31 +53,43 @@ const AdminDashboard: React.FC = () => {
   const fetchOrders = async () => {
     try {
       // First, check health
-      const healthCheck = await fetch('/api/health');
-      if (healthCheck.ok) {
-        const health = await healthCheck.json();
-        console.log('API Health Check:', health);
-      } else {
-        console.error('API Health Check failed:', healthCheck.status);
+      let healthOk = false;
+      try {
+        const healthCheck = await fetch('/api/health');
+        if (healthCheck.ok) {
+          const health = await healthCheck.json();
+          console.log('API Health Check:', health);
+          healthOk = true;
+        } else {
+          console.error('API Health Check failed:', healthCheck.status);
+        }
+      } catch (hErr) {
+        console.error('Health check request failed:', hErr);
       }
 
       const response = await fetch('/api/orders');
       console.log('Fetch response URL:', response.url);
-      console.log('Fetch response headers:', Object.fromEntries(response.headers.entries()));
-      if (!response.ok) throw new Error('Failed to fetch orders');
+      console.log('Fetch response status:', response.status);
       
       const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
+      if (response.ok && contentType && contentType.includes('application/json')) {
         const data = await response.json();
         setOrders(data);
+        setError(null);
       } else {
         const text = await response.text();
         console.error('Expected JSON but got:', text.substring(0, 500));
-        setError(`Server returned ${response.status} ${response.statusText} with content-type: ${contentType}. Current URL: ${window.location.href}. Check console for details.`);
-        throw new Error('Server returned an invalid response format (expected JSON)');
+        const statusMsg = `Status: ${response.status} ${response.statusText}`;
+        const typeMsg = `Content-Type: ${contentType || 'unknown'}`;
+        const urlMsg = `URL: ${response.url}`;
+        setError(`API Error: ${statusMsg}. ${typeMsg}. ${urlMsg}. Check console for full response.`);
+        throw new Error(`Server returned invalid response format (${response.status})`);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      console.error('Error in fetchOrders:', err);
+      if (!error) {
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      }
     }
   };
 

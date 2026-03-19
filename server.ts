@@ -25,6 +25,12 @@ const getSupabase = () => {
   return supabaseClient;
 };
 
+// Request logger middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 app.use(express.json());
 
 // Health check route
@@ -32,7 +38,8 @@ app.get("/api/health", (req, res) => {
   res.json({ 
     status: "ok", 
     env: process.env.NODE_ENV,
-    time: new Date().toISOString() 
+    time: new Date().toISOString(),
+    supabaseConfigured: !!process.env.SUPABASE_URL && (!!process.env.SUPABASE_SERVICE_ROLE_KEY || !!process.env.SUPABASE_ANON_KEY)
   });
 });
 
@@ -69,6 +76,13 @@ app.post("/api/orders", async (req, res) => {
 
     if (error) {
       console.error("Supabase error detail:", JSON.stringify(error, null, 2));
+      // Better error for missing table
+      if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+        return res.status(400).json({ 
+          error: "Database table 'orders' not found.", 
+          details: "Please ensure you have created the 'orders' table in your Supabase project." 
+        });
+      }
       return res.status(500).json({ error: error.message, details: error });
     }
 
@@ -94,11 +108,17 @@ app.get("/api/orders", async (req, res) => {
       .order("created_at", { ascending: false });
 
     if (error) {
-      return res.status(500).json({ error: error.message });
+      console.error("Supabase error fetching orders:", error);
+      // If table doesn't exist, return empty array instead of error to avoid crashing UI
+      if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+        return res.json([]);
+      }
+      return res.status(500).json({ error: error.message, details: error });
     }
 
-    res.json(data);
+    res.json(data || []);
   } catch (err) {
+    console.error("Unexpected error fetching orders:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -192,6 +212,13 @@ app.post("/api/products", async (req, res) => {
     }
 
     if (result.error) {
+      console.error("Supabase error saving product:", result.error);
+      if (result.error.code === 'PGRST116' || result.error.message.includes('does not exist')) {
+        return res.status(400).json({ 
+          error: "Database table 'products' not found.", 
+          details: "Please ensure you have created the 'products' table in your Supabase project." 
+        });
+      }
       return res.status(500).json({ error: result.error.message });
     }
 
@@ -253,6 +280,4 @@ async function startServer() {
   });
 }
 
-if (process.env.NODE_ENV !== "production" || !process.env.NETLIFY) {
-  startServer();
-}
+startServer();
