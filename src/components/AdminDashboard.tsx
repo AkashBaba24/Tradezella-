@@ -34,6 +34,7 @@ interface Product {
   id?: string;
   name: string;
   price: number;
+  duration?: string;
   description?: string;
 }
 
@@ -48,29 +49,11 @@ const AdminDashboard: React.FC = () => {
   // Product form state
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
-  const [productForm, setProductForm] = useState<Product>({ name: '', price: 0, description: '' });
+  const [productForm, setProductForm] = useState<Product>({ name: '', price: 0, duration: '30 Days', description: '' });
 
   const fetchOrders = async () => {
     try {
-      // First, check health
-      let healthOk = false;
-      try {
-        const healthCheck = await fetch('/api/health');
-        if (healthCheck.ok) {
-          const health = await healthCheck.json();
-          console.log('API Health Check:', health);
-          healthOk = true;
-        } else {
-          console.error('API Health Check failed:', healthCheck.status);
-        }
-      } catch (hErr) {
-        console.error('Health check request failed:', hErr);
-      }
-
       const response = await fetch('/api/orders');
-      console.log('Fetch response URL:', response.url);
-      console.log('Fetch response status:', response.status);
-      
       const contentType = response.headers.get('content-type');
       if (response.ok && contentType && contentType.includes('application/json')) {
         const data = await response.json();
@@ -79,11 +62,7 @@ const AdminDashboard: React.FC = () => {
       } else {
         const text = await response.text();
         console.error('Expected JSON but got:', text.substring(0, 500));
-        const statusMsg = `Status: ${response.status} ${response.statusText}`;
-        const typeMsg = `Content-Type: ${contentType || 'unknown'}`;
-        const urlMsg = `URL: ${response.url}`;
-        setError(`API Error: ${statusMsg}. ${typeMsg}. ${urlMsg}. Check console for full response.`);
-        throw new Error(`Server returned invalid response format (${response.status})`);
+        setError(`API Error: ${response.status}. Check console for full response.`);
       }
     } catch (err) {
       console.error('Error in fetchOrders:', err);
@@ -102,11 +81,6 @@ const AdminDashboard: React.FC = () => {
       if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
         setProducts(data);
-      } else {
-        const text = await response.text();
-        console.error('Expected JSON but got:', text.substring(0, 100));
-        // Don't throw here to avoid crashing the whole dashboard if products fail
-        console.warn('Products API returned non-JSON response');
       }
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -180,7 +154,7 @@ const AdminDashboard: React.FC = () => {
       await fetchProducts();
       setIsAddingProduct(false);
       setEditingProduct(null);
-      setProductForm({ name: '', price: 0, description: '' });
+      setProductForm({ name: '', price: 0, duration: '30 Days', description: '' });
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to save product');
     } finally {
@@ -188,8 +162,36 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const generateStandardPlans = async () => {
+    if (!confirm('This will add standard subscription plans (1 Week, 15 Days, 30 Days, 6 Months, 1 Year). Continue?')) return;
+    
+    const standardPlans = [
+      { name: '1 Week Subscription', price: 5, duration: '7 Days', description: 'Access for 7 days' },
+      { name: '15 Days Subscription', price: 10, duration: '15 Days', description: 'Access for 15 days' },
+      { name: '30 Days Subscription', price: 18, duration: '30 Days', description: 'Access for 30 days' },
+      { name: '6 Months Subscription', price: 80, duration: '180 Days', description: 'Access for 6 months' },
+      { name: '1 Year Subscription', price: 150, duration: '365 Days', description: 'Access for 1 year' },
+    ];
+
+    setActionLoading('generating-plans');
+    try {
+      for (const plan of standardPlans) {
+        await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(plan),
+        });
+      }
+      await fetchProducts();
+    } catch (err) {
+      alert('Error generating plans: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleDeleteProduct = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+    if (!confirm('Are you sure you want to delete this plan?')) return;
     
     setActionLoading(id);
     try {
@@ -229,7 +231,7 @@ const AdminDashboard: React.FC = () => {
             <ShieldCheck className="text-emerald-500" />
             Admin Dashboard
           </h1>
-          <p className="text-zinc-400">Manage membership requests and product pricing.</p>
+          <p className="text-zinc-400">Manage membership requests and subscription pricing.</p>
         </div>
         <button 
           onClick={fetchData}
@@ -258,7 +260,7 @@ const AdminDashboard: React.FC = () => {
             activeTab === 'products' ? "text-emerald-500" : "text-zinc-500 hover:text-zinc-300"
           )}
         >
-          Products & Pricing
+          Subscription Plans
           {activeTab === 'products' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500" />}
         </button>
       </div>
@@ -301,7 +303,7 @@ const AdminDashboard: React.FC = () => {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="space-y-1">
-                      <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Product</p>
+                      <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Plan</p>
                       <p className="text-sm text-zinc-300">{order.product}</p>
                     </div>
                     <div className="space-y-1">
@@ -359,38 +361,59 @@ const AdminDashboard: React.FC = () => {
       ) : (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-white">Manage Products</h2>
-            {!isAddingProduct && (
+            <h2 className="text-xl font-bold text-white">Manage Subscription Plans</h2>
+            <div className="flex gap-3">
               <button
-                onClick={() => {
-                  setIsAddingProduct(true);
-                  setEditingProduct(null);
-                  setProductForm({ name: '', price: 0, description: '' });
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all"
+                disabled={actionLoading === 'generating-plans'}
+                onClick={generateStandardPlans}
+                className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl transition-all disabled:opacity-50"
               >
-                <Plus size={18} />
-                Add Product
+                {actionLoading === 'generating-plans' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock size={18} />}
+                Auto-generate Plans
               </button>
-            )}
+              {!isAddingProduct && (
+                <button
+                  onClick={() => {
+                    setIsAddingProduct(true);
+                    setEditingProduct(null);
+                    setProductForm({ name: '', price: 0, duration: '30 Days', description: '' });
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all"
+                >
+                  <Plus size={18} />
+                  Add Plan
+                </button>
+              )}
+            </div>
           </div>
 
           {isAddingProduct && (
             <form onSubmit={handleSaveProduct} className="bg-zinc-900/80 border border-emerald-500/30 rounded-3xl p-6 space-y-4 animate-in fade-in zoom-in duration-300">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 {editingProduct ? <Edit2 size={18} /> : <Plus size={18} />}
-                {editingProduct ? 'Edit Product' : 'New Product'}
+                {editingProduct ? 'Edit Plan' : 'New Subscription Plan'}
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Product Name</label>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Plan Name</label>
                   <input
                     type="text"
                     required
                     value={productForm.name}
                     onChange={e => setProductForm({ ...productForm, name: e.target.value })}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-emerald-500"
-                    placeholder="e.g. MicroZella Pro"
+                    placeholder="e.g. 1 Month Premium"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Duration</label>
+                  <input
+                    type="text"
+                    required
+                    value={productForm.duration}
+                    onChange={e => setProductForm({ ...productForm, duration: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-emerald-500"
+                    placeholder="e.g. 30 Days"
                   />
                 </div>
                 <div className="space-y-2">
@@ -402,7 +425,7 @@ const AdminDashboard: React.FC = () => {
                     value={productForm.price}
                     onChange={e => setProductForm({ ...productForm, price: parseFloat(e.target.value) })}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-emerald-500"
-                    placeholder="99.99"
+                    placeholder="9.99"
                   />
                 </div>
               </div>
@@ -412,7 +435,7 @@ const AdminDashboard: React.FC = () => {
                   value={productForm.description}
                   onChange={e => setProductForm({ ...productForm, description: e.target.value })}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-emerald-500 h-24"
-                  placeholder="Describe the product features..."
+                  placeholder="Describe the plan features..."
                 />
               </div>
               <div className="flex justify-end gap-3">
@@ -432,7 +455,7 @@ const AdminDashboard: React.FC = () => {
                   className="flex items-center gap-2 px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all disabled:opacity-50"
                 >
                   {actionLoading === 'product-save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={18} />}
-                  Save Product
+                  Save Plan
                 </button>
               </div>
             </form>
@@ -441,8 +464,7 @@ const AdminDashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {products.length === 0 ? (
               <div className="col-span-full bg-zinc-900/50 border border-zinc-800/50 rounded-3xl p-12 text-center space-y-4">
-                <p className="text-zinc-400 italic">No products defined yet. Add your first product to manage pricing.</p>
-                <p className="text-xs text-zinc-500">Note: Ensure you have created a 'products' table in Supabase.</p>
+                <p className="text-zinc-400 italic">No subscription plans defined yet. Add your first plan or use "Auto-generate".</p>
               </div>
             ) : (
               products.map(product => (
@@ -467,7 +489,12 @@ const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white">{product.name}</h3>
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-lg font-bold text-white">{product.name}</h3>
+                      <span className="text-[10px] font-bold text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                        {product.duration || 'N/A'}
+                      </span>
+                    </div>
                     <div className="flex items-center justify-between mt-1">
                       <p className="text-2xl font-black text-emerald-500 font-mono">{formatCurrency(product.price)}</p>
                       <div className="flex items-center gap-1">

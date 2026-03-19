@@ -64,6 +64,26 @@ service cloud.firestore {
     //   - endDate: string (required)
     //   - uid: string (required, matches userId)
     //
+    // Collection: plans
+    // Document ID: planId
+    // Fields:
+    //   - name: string (required)
+    //   - durationDays: number (required)
+    //   - price: number (required)
+    //   - description: string (optional)
+    //   - features: list (optional)
+    //
+    // Collection: orders
+    // Document ID: orderId
+    // Fields:
+    //   - uid: string (required, matches auth.uid)
+    //   - planId: string (required)
+    //   - planName: string (optional)
+    //   - amount: number (required)
+    //   - status: string (required, enum: ["pending", "completed", "failed"])
+    //   - createdAt: timestamp (required)
+    //   - expiresAt: timestamp (optional)
+    //
     // ===============================================================
 
     // ===============================================================
@@ -136,6 +156,22 @@ service cloud.firestore {
              data.uid is string && data.uid == request.auth.uid;
     }
 
+    function isValidPlan(data) {
+      return hasRequiredFields(['name', 'durationDays', 'price']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.durationDays is int && data.durationDays > 0 &&
+             data.price is number && data.price >= 0;
+    }
+
+    function isValidOrder(data) {
+      return hasRequiredFields(['uid', 'planId', 'amount', 'status', 'createdAt']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.planId is string &&
+             data.amount is number && data.amount >= 0 &&
+             data.status in ["pending", "completed", "failed"] &&
+             data.createdAt is timestamp;
+    }
+
     // ===============================================================
     // Match Rules
     // ===============================================================
@@ -166,6 +202,18 @@ service cloud.firestore {
         allow update: if isOwner(userId) && isValidGoal(request.resource.data);
         allow delete: if isOwner(userId) || isAdmin();
       }
+    }
+
+    match /plans/{planId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isValidPlan(request.resource.data);
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     match /{path=**}/trades/{tradeId} {

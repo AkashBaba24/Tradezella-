@@ -183,7 +183,7 @@ app.get("/api/products", async (req, res) => {
 
 // API route to update or create a product
 app.post("/api/products", async (req, res) => {
-  const { id, name, price, description } = req.body;
+  const { id, name, price, description, duration } = req.body;
 
   if (!name || price === undefined) {
     return res.status(400).json({ error: "Missing name or price" });
@@ -200,14 +200,14 @@ app.post("/api/products", async (req, res) => {
       // Update
       result = await supabase
         .from("products")
-        .update({ name, price, description })
+        .update({ name, price, description, duration })
         .eq("id", id)
         .select();
     } else {
       // Create
       result = await supabase
         .from("products")
-        .insert([{ name, price, description }])
+        .insert([{ name, price, description, duration }])
         .select();
     }
 
@@ -219,7 +219,28 @@ app.post("/api/products", async (req, res) => {
           details: "Please ensure you have created the 'products' table in your Supabase project." 
         });
       }
-      return res.status(500).json({ error: result.error.message });
+      // If duration column is missing, try without it
+      if (result.error.message.includes('column "duration" of relation "products" does not exist')) {
+        console.warn("Duration column missing in Supabase, falling back to name/price/description only");
+        if (id) {
+          result = await supabase
+            .from("products")
+            .update({ name, price, description })
+            .eq("id", id)
+            .select();
+        } else {
+          result = await supabase
+            .from("products")
+            .insert([{ name, price, description }])
+            .select();
+        }
+        
+        if (result.error) {
+          return res.status(500).json({ error: result.error.message });
+        }
+      } else {
+        return res.status(500).json({ error: result.error.message });
+      }
     }
 
     res.json({ message: "Product saved successfully", data: result.data });

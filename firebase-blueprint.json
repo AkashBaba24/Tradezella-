@@ -73,6 +73,34 @@
         "uid": { "type": "string" }
       },
       "required": ["type", "target", "startDate", "endDate", "uid"]
+    },
+    "SubscriptionPlan": {
+      "title": "Subscription Plan",
+      "description": "Available subscription plans.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "durationDays": { "type": "integer" },
+        "price": { "type": "number" },
+        "description": { "type": "string" },
+        "features": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["name", "durationDays", "price"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A subscription purchase order.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "planId": { "type": "string" },
+        "planName": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "planId", "amount", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -91,6 +119,14 @@
     "/users/{userId}/goals/{goalId}": {
       "schema": "Goal",
       "description": "User's trading goals."
+    },
+    "/plans/{planId}": {
+      "schema": "SubscriptionPlan",
+      "description": "Global subscription plans."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Subscription orders."
     }
   }
 }

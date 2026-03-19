@@ -6,6 +6,7 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  duration?: string;
   description?: string;
 }
 
@@ -44,8 +45,8 @@ const Checkout: React.FC = () => {
             // Fallback to defaults if no products in DB
             setFormData(prev => ({
               ...prev,
-              product: 'MicroZella Pro (Annual)',
-              amount: 99.99
+              product: '1 Month Subscription',
+              amount: 19.99
             }));
           }
         }
@@ -54,8 +55,8 @@ const Checkout: React.FC = () => {
         // Fallback
         setFormData(prev => ({
           ...prev,
-          product: 'MicroZella Pro (Annual)',
-          amount: 99.99
+          product: '1 Month Subscription',
+          amount: 19.99
         }));
       } finally {
         setFetchingProducts(false);
@@ -83,16 +84,15 @@ const Checkout: React.FC = () => {
 
       if (!response.ok) {
         const errorMessage = typeof result.error === 'string' ? result.error : (result.error?.message || 'Failed to submit order');
-        const detailMessage = result.details ? ` (${JSON.stringify(result.details)})` : '';
-        throw new Error(`${errorMessage}${detailMessage}`);
+        throw new Error(errorMessage);
       }
 
       setSuccess(true);
       setFormData({
         customerName: '',
         customerEmail: '',
-        product: 'MicroZella Pro (Annual)',
-        amount: 99.99,
+        product: products[0]?.name || '1 Month Subscription',
+        amount: products[0]?.price || 19.99,
       });
     } catch (err) {
       console.error('Checkout error:', err);
@@ -108,15 +108,15 @@ const Checkout: React.FC = () => {
         <div className="w-20 h-20 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/10">
           <CheckCircle2 size={48} />
         </div>
-        <h1 className="text-4xl font-black text-white tracking-tight">Order Successful!</h1>
+        <h1 className="text-4xl font-black text-white tracking-tight">Purchase Successful!</h1>
         <p className="text-zinc-400 text-lg">
-          Thank you for your purchase. Your order has been securely stored in our Supabase database.
+          Thank you for your subscription. Your order is pending approval by the admin.
         </p>
         <button
           onClick={() => setSuccess(false)}
           className="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
         >
-          Place Another Order
+          Back to Pricing
         </button>
       </div>
     );
@@ -125,8 +125,8 @@ const Checkout: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header>
-        <h1 className="text-3xl font-bold text-white mb-2">Join to Premium</h1>
-        <p className="text-zinc-400">Upgrade your trading experience with our premium tools.</p>
+        <h1 className="text-3xl font-bold text-white mb-2">Upgrade to Premium</h1>
+        <p className="text-zinc-400">Choose a subscription plan that fits your trading style.</p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -164,47 +164,48 @@ const Checkout: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-4">
               <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                 <Package size={14} className="text-emerald-500" />
-                Select Product
+                Select Subscription Plan
               </label>
+              
               {fetchingProducts ? (
-                <div className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-zinc-500 flex items-center gap-2">
-                  <Loader2 size={16} className="animate-spin" />
-                  Loading products...
+                <div className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-8 text-zinc-500 flex flex-col items-center justify-center gap-3">
+                  <Loader2 size={24} className="animate-spin text-emerald-500" />
+                  <p className="text-sm">Fetching latest plans...</p>
                 </div>
               ) : (
-                <select
-                  value={formData.product}
-                  onChange={(e) => {
-                    const productName = e.target.value;
-                    const selectedProduct = products.find(p => p.name === productName);
-                    
-                    if (selectedProduct) {
-                      setFormData({ ...formData, product: productName, amount: selectedProduct.price });
-                    } else {
-                      // Handle fallback cases
-                      let amount = 99.99;
-                      if (productName.includes('Monthly')) amount = 12.99;
-                      else if (productName.includes('Analytics')) amount = 49.99;
-                      setFormData({ ...formData, product: productName, amount });
-                    }
-                  }}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all appearance-none"
-                >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {products.length > 0 ? (
                     products.map(p => (
-                      <option key={p.id} value={p.name}>{p.name} - ${p.price}</option>
+                      <div 
+                        key={p.id}
+                        onClick={() => setFormData({ ...formData, product: p.name, amount: p.price })}
+                        className={cn(
+                          "cursor-pointer p-4 rounded-2xl border transition-all flex flex-col gap-2",
+                          formData.product === p.name 
+                            ? "bg-emerald-500/10 border-emerald-500 ring-1 ring-emerald-500" 
+                            : "bg-zinc-950 border-zinc-800 hover:border-zinc-700"
+                        )}
+                      >
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-bold text-white">{p.name}</h4>
+                          {formData.product === p.name && <CheckCircle2 size={16} className="text-emerald-500" />}
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-2xl font-black text-emerald-500 font-mono">${p.price}</span>
+                          <span className="text-xs text-zinc-500">/ {p.duration || 'period'}</span>
+                        </div>
+                        {p.description && <p className="text-xs text-zinc-500 line-clamp-2">{p.description}</p>}
+                      </div>
                     ))
                   ) : (
-                    <>
-                      <option value="MicroZella Pro (Annual)">MicroZella Pro (Annual) - $99.99</option>
-                      <option value="MicroZella Pro (Monthly)">MicroZella Pro (Monthly) - $12.99</option>
-                      <option value="Advanced Analytics Add-on">Advanced Analytics Add-on - $49.99</option>
-                    </>
+                    <div className="col-span-full p-8 text-center bg-zinc-950 border border-zinc-800 rounded-2xl">
+                      <p className="text-zinc-500 italic">No plans available. Please contact admin.</p>
+                    </div>
                   )}
-                </select>
+                </div>
               )}
             </div>
 
@@ -217,7 +218,7 @@ const Checkout: React.FC = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !formData.product}
               className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 text-lg"
             >
               {loading ? (
@@ -228,7 +229,7 @@ const Checkout: React.FC = () => {
               ) : (
                 <>
                   <CreditCard size={20} />
-                  Complete Purchase
+                  Subscribe Now
                 </>
               )}
             </button>
@@ -237,7 +238,7 @@ const Checkout: React.FC = () => {
 
         {/* Order Summary */}
         <div className="space-y-6">
-          <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-3xl p-6 space-y-6">
+          <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-3xl p-6 space-y-6 sticky top-8">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <ShoppingCart size={20} className="text-emerald-500" />
               Order Summary
@@ -246,8 +247,8 @@ const Checkout: React.FC = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-white font-bold">{formData.product}</p>
-                  <p className="text-zinc-500 text-xs">Full access to all features</p>
+                  <p className="text-white font-bold">{formData.product || 'No plan selected'}</p>
+                  <p className="text-zinc-500 text-xs">Full premium access</p>
                 </div>
                 <p className="text-white font-mono">${formData.amount}</p>
               </div>
@@ -274,11 +275,10 @@ const Checkout: React.FC = () => {
             <div className="p-4 bg-zinc-950 rounded-2xl border border-zinc-800 space-y-2">
               <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                 <DollarSign size={10} className="text-emerald-500" />
-                Database Integration
+                Payment Method
               </p>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Your order data will be securely stored in the Supabase project: 
-                <span className="text-emerald-500 block font-mono mt-1">zvltcdqozsetlqzhqvqt</span>
+                Currently we only support manual bank transfer. After placing the order, please contact admin for payment details.
               </p>
             </div>
           </div>
