@@ -17,6 +17,7 @@ import {
   where, 
   onSnapshot, 
   addDoc, 
+  setDoc,
   updateDoc, 
   doc, 
   getDocs,
@@ -94,15 +95,17 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
     return () => unsubscribe();
   }, [user]);
 
+  const [isCurrentlyTypingInFirestore, setIsCurrentlyTypingInFirestore] = useState(false);
+
   // Update my typing status
   useEffect(() => {
     if (!user || !profile || activeView !== 'community' || !newMessage.trim()) {
-      if (user) {
+      if (user && isCurrentlyTypingInFirestore) {
         // Clear typing status when not typing or not in community
-        const path = `typing/${user.uid}`;
         const clearTyping = async () => {
           try {
             await deleteDoc(doc(db, 'typing', user.uid));
+            setIsCurrentlyTypingInFirestore(false);
           } catch (e) {}
         };
         clearTyping();
@@ -110,15 +113,15 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
       return;
     }
 
-    const path = `typing/${user.uid}`;
     const updateTyping = async () => {
       try {
         const typingRef = doc(db, 'typing', user.uid);
-        await writeBatch(db).set(typingRef, {
+        await setDoc(typingRef, {
           isTyping: true,
           displayName: profile.displayName || 'Anonymous',
           timestamp: new Date().toISOString()
-        }).commit();
+        });
+        setIsCurrentlyTypingInFirestore(true);
       } catch (e) {
         console.error('Typing update error:', e);
       }
@@ -126,7 +129,7 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
 
     const timeout = setTimeout(updateTyping, 500);
     return () => clearTimeout(timeout);
-  }, [user, profile, activeView, newMessage]);
+  }, [user, profile, activeView, newMessage, isCurrentlyTypingInFirestore]);
 
   // Fetch Incoming Requests
   useEffect(() => {

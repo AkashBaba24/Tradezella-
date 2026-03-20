@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
 import { AuthProvider, useAuth } from './components/AuthContext';
-import ErrorBoundary from './components/ErrorBoundary.tsx';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import TradeLog from './components/TradeLog';
