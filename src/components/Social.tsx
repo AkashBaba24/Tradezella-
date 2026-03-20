@@ -25,7 +25,8 @@ import {
   Timestamp,
   serverTimestamp,
   deleteDoc,
-  writeBatch
+  writeBatch,
+  or
 } from 'firebase/firestore';
 import { db, handleFirestoreError } from '../firebase';
 import { useAuth } from './AuthContext';
@@ -52,22 +53,46 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
   const [newMessage, setNewMessage] = useState('');
   const [isSharingTrade, setIsSharingTrade] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
-  // Fetch All Requests (to check for duplicates)
+  // Fetch Incoming Requests
   useEffect(() => {
     if (!user) return;
     const q = query(
       collection(db, 'friendRequests'),
+      where('receiverUid', '==', user.uid),
       where('status', '==', 'pending')
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FriendRequest));
-      setAllRequests(requests);
-      setIncomingRequests(requests.filter(r => r.receiverUid === user.uid));
-      setOutgoingRequests(requests.filter(r => r.senderUid === user.uid));
+      setIncomingRequests(requests);
+    }, (error) => {
+      console.error('Incoming requests snapshot error:', error);
     });
     return () => unsubscribe();
   }, [user]);
+
+  // Fetch Outgoing Requests
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'friendRequests'),
+      where('senderUid', '==', user.uid),
+      where('status', '==', 'pending')
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FriendRequest));
+      setOutgoingRequests(requests);
+    }, (error) => {
+      console.error('Outgoing requests snapshot error:', error);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Combined requests for duplicate checking
+  useEffect(() => {
+    setAllRequests([...incomingRequests, ...outgoingRequests]);
+  }, [incomingRequests, outgoingRequests]);
 
   // Fetch Friends
   useEffect(() => {
@@ -156,13 +181,15 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
     );
     
     if (existing) {
-      alert('A friend request is already pending.');
+      setStatusMessage({ text: 'A friend request is already pending.', type: 'error' });
+      setTimeout(() => setStatusMessage(null), 3000);
       return;
     }
 
     // Check if already friends
     if (friends.some(f => f.uid === receiver.uid)) {
-      alert('You are already friends.');
+      setStatusMessage({ text: 'You are already friends.', type: 'error' });
+      setTimeout(() => setStatusMessage(null), 3000);
       return;
     }
 
@@ -175,9 +202,12 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
         status: 'pending',
         timestamp: new Date().toISOString()
       });
-      // No need to filter search results here, UI will update based on state
+      setStatusMessage({ text: 'Friend request sent!', type: 'success' });
+      setTimeout(() => setStatusMessage(null), 3000);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, path);
+      setStatusMessage({ text: 'Failed to send request.', type: 'error' });
+      setTimeout(() => setStatusMessage(null), 3000);
     }
   };
 
@@ -285,6 +315,21 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
         </div>
 
         <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800/50">
+          <AnimatePresence>
+            {statusMessage && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className={cn(
+                  "absolute top-20 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full text-xs font-bold z-50 shadow-lg",
+                  statusMessage.type === 'success' ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
+                )}
+              >
+                {statusMessage.text}
+              </motion.div>
+            )}
+          </AnimatePresence>
           <button
             onClick={() => setActiveView('friends')}
             className={cn(

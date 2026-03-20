@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
 import { AuthProvider, useAuth } from './components/AuthContext';
-import ErrorBoundary from './components/ErrorBoundary';
+import ErrorBoundary from './components/ErrorBoundary.tsx';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import TradeLog from './components/TradeLog';
@@ -17,7 +17,6 @@ import FullScreenImage from './components/FullScreenImage';
 import Social from './components/Social';
 import { Trade } from './types';
 import { TrendingUp, Shield, BarChart3, Zap, ArrowRight } from 'lucide-react';
-import { SpeedInsights } from '@vercel/speed-insights/react';
 
 const LandingPage: React.FC = () => {
   const { signIn, signInWithEmail, signUpWithEmail, sendPasswordReset, error, clearError } = useAuth();
@@ -407,7 +406,6 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <AppContent />
-        <SpeedInsights />
       </AuthProvider>
     </ErrorBoundary>
   );

@@ -15,7 +15,12 @@ export interface UserProfile {
   role?: UserRole;
   subscriptionPlan?: string;
   subscriptionExpiry?: string;
-  purchasedPlans?: string[];
+  purchasedPlans?: {
+    planName: string;
+    duration?: string;
+    purchasedAt: string;
+    expiryDate: string;
+  }[];
   isPremium?: boolean;
 }
 

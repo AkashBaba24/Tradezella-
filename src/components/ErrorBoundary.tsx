@@ -21,19 +21,30 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught error:', error, errorInfo);
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 
   public render() {
     if (this.state.hasError) {
       let errorMessage = 'An unexpected error occurred.';
-      try {
-        const parsedError = JSON.parse(this.state.error?.message || '');
-        if (parsedError.error) {
-          errorMessage = `Database Error: ${parsedError.error}`;
+      const error = this.state.error;
+      
+      if (error && error.message) {
+        try {
+          // Attempt to parse custom Firestore error JSON
+          if (error.message.trim().startsWith('{')) {
+            const parsedError = JSON.parse(error.message);
+            if (parsedError && parsedError.error) {
+              errorMessage = `Database Error: ${parsedError.error}`;
+            } else {
+              errorMessage = error.message;
+            }
+          } else {
+            errorMessage = error.message;
+          }
+        } catch {
+          errorMessage = error.message;
         }
-      } catch {
-        errorMessage = this.state.error?.message || errorMessage;
       }
 
       return (

@@ -122,12 +122,30 @@ const Settings: React.FC = () => {
                 
                 {profile?.purchasedPlans && profile.purchasedPlans.length > 0 && (
                   <div className="pt-4 border-t border-zinc-800/50">
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Order History</p>
-                    <div className="flex flex-wrap gap-2">
-                      {profile.purchasedPlans.map((plan, idx) => (
-                        <span key={idx} className="px-3 py-1 bg-zinc-950 text-zinc-400 text-[10px] font-bold rounded-full border border-zinc-800">
-                          {plan}
-                        </span>
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Purchase History</p>
+                    <div className="space-y-2">
+                      {profile.purchasedPlans.map((purchase, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 bg-zinc-950 rounded-xl border border-zinc-800">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-bold text-white">{purchase.planName}</p>
+                              {purchase.duration && (
+                                <span className="px-1.5 py-0.5 bg-zinc-800 text-zinc-500 text-[8px] font-bold rounded uppercase">
+                                  {purchase.duration}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-zinc-500">
+                              Purchased: {format(new Date(purchase.purchasedAt), 'MMM dd, yyyy')}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Expires</p>
+                            <p className="text-[10px] font-bold text-emerald-500">
+                              {format(new Date(purchase.expiryDate), 'MMM dd, yyyy')}
+                            </p>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>

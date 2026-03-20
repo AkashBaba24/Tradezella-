@@ -244,9 +244,12 @@ app.patch("/api/orders/:id", async (req, res) => {
           const newExpiry = new Date(currentExpiry.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
           
           const purchasedPlans = userData.purchasedPlans || [];
-          if (!purchasedPlans.includes(productName)) {
-            purchasedPlans.push(productName);
-          }
+          purchasedPlans.push({
+            planName: productName,
+            duration: durationStr,
+            purchasedAt: now.toISOString(),
+            expiryDate: newExpiry.toISOString()
+          });
           
           await userDoc.ref.update({
             subscriptionPlan: productName,
