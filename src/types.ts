@@ -81,6 +81,8 @@ export interface FriendRequest {
 export interface Message {
   id?: string;
   senderUid: string;
+  senderName?: string;
+  senderPhoto?: string;
   receiverUid: string;
   content: string;
   timestamp: string;

@@ -274,6 +274,22 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (resource.data.senderUid == request.auth.uid || isAdmin());
     }
 
+    match /communityMessages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidMessage(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /typing/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId) && 
+                    hasOnlyAllowedFields(['isTyping', 'displayName', 'timestamp']) &&
+                    request.resource.data.isTyping is bool &&
+                    request.resource.data.displayName is string &&
+                    request.resource.data.timestamp is string;
+    }
+
     match /plans/{planId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() && isValidPlan(request.resource.data);

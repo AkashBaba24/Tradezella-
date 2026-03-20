@@ -41,7 +41,7 @@ interface SocialProps {
 
 const Social: React.FC<SocialProps> = ({ trades }) => {
   const { user, profile } = useAuth();
-  const [activeView, setActiveView] = useState<'friends' | 'requests' | 'search'>('friends');
+  const [activeView, setActiveView] = useState<'friends' | 'requests' | 'search' | 'community'>('community');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [friends, setFriends] = useState<UserProfile[]>([]);
@@ -50,10 +50,83 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
   const [allRequests, setAllRequests] = useState<FriendRequest[]>([]);
   const [selectedFriend, setSelectedFriend] = useState<UserProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [communityMessages, setCommunityMessages] = useState<Message[]>([]);
+  const [typingUsers, setTypingUsers] = useState<Record<string, { displayName: string, timestamp: string }>>({});
   const [newMessage, setNewMessage] = useState('');
   const [isSharingTrade, setIsSharingTrade] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+  // Fetch Community Messages
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'communityMessages'),
+      orderBy('timestamp', 'asc'),
+      limit(100)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+      setCommunityMessages(msgs);
+    }, (error) => {
+      console.error('Community messages snapshot error:', error);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Fetch Typing Status
+  useEffect(() => {
+    if (!user) return;
+    const q = collection(db, 'typing');
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const typing: Record<string, any> = {};
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        // Only show typing status if it's recent (within 5 seconds)
+        const timestamp = new Date(data.timestamp).getTime();
+        const now = Date.now();
+        if (data.isTyping && doc.id !== user.uid && (now - timestamp) < 5000) {
+          typing[doc.id] = data;
+        }
+      });
+      setTypingUsers(typing);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Update my typing status
+  useEffect(() => {
+    if (!user || !profile || activeView !== 'community' || !newMessage.trim()) {
+      if (user) {
+        // Clear typing status when not typing or not in community
+        const path = `typing/${user.uid}`;
+        const clearTyping = async () => {
+          try {
+            await deleteDoc(doc(db, 'typing', user.uid));
+          } catch (e) {}
+        };
+        clearTyping();
+      }
+      return;
+    }
+
+    const path = `typing/${user.uid}`;
+    const updateTyping = async () => {
+      try {
+        const typingRef = doc(db, 'typing', user.uid);
+        await writeBatch(db).set(typingRef, {
+          isTyping: true,
+          displayName: profile.displayName || 'Anonymous',
+          timestamp: new Date().toISOString()
+        }).commit();
+      } catch (e) {
+        console.error('Typing update error:', e);
+      }
+    };
+
+    const timeout = setTimeout(updateTyping, 500);
+    return () => clearTimeout(timeout);
+  }, [user, profile, activeView, newMessage]);
 
   // Fetch Incoming Requests
   useEffect(() => {
@@ -274,13 +347,18 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
   };
 
   const sendMessage = async (sharedTrade?: Trade) => {
-    if (!user || !selectedFriend || (!newMessage.trim() && !sharedTrade)) return;
+    if (!user || (!newMessage.trim() && !sharedTrade)) return;
+    if (activeView === 'friends' && !selectedFriend) return;
 
-    const path = 'messages';
+    const isCommunity = activeView === 'community';
+    const path = isCommunity ? 'communityMessages' : 'messages';
+    
     try {
       await addDoc(collection(db, path), {
         senderUid: user.uid,
-        receiverUid: selectedFriend.uid,
+        senderName: profile?.displayName || 'Anonymous',
+        senderPhoto: profile?.photoURL || null,
+        receiverUid: isCommunity ? 'community' : selectedFriend?.uid,
         content: newMessage.trim(),
         timestamp: new Date().toISOString(),
         sharedTradeId: sharedTrade?.id || null,
@@ -330,6 +408,15 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
               </motion.div>
             )}
           </AnimatePresence>
+          <button
+            onClick={() => setActiveView('community')}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+              activeView === 'community' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-zinc-400 hover:text-white"
+            )}
+          >
+            Community Board
+          </button>
           <button
             onClick={() => setActiveView('friends')}
             className={cn(
@@ -523,33 +610,47 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
 
         {/* Chat Area */}
         <div className="flex-1 flex flex-col bg-zinc-900/50 border border-zinc-800/50 rounded-3xl overflow-hidden">
-          {selectedFriend ? (
+          {activeView === 'community' || selectedFriend ? (
             <>
               {/* Chat Header */}
               <div className="p-4 border-b border-zinc-800/50 bg-zinc-900/80 backdrop-blur-xl flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
-                    {selectedFriend.photoURL ? (
-                      <img src={selectedFriend.photoURL} alt={selectedFriend.displayName} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="font-bold text-emerald-500">{selectedFriend.displayName.charAt(0)}</span>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-white">{selectedFriend.displayName}</p>
-                    <div className="flex items-center gap-3">
-                      <p className="text-[10px] text-emerald-500 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                        Online
-                      </p>
-                      <button 
-                        onClick={() => unfriend(selectedFriend.uid)}
-                        className="text-[10px] text-red-500 hover:text-red-400 transition-colors font-bold uppercase tracking-wider"
-                      >
-                        Unfriend
-                      </button>
-                    </div>
-                  </div>
+                  {activeView === 'community' ? (
+                    <>
+                      <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
+                        <Share2 size={20} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-white">Community Board</p>
+                        <p className="text-[10px] text-zinc-500">Global chat for all traders</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
+                        {selectedFriend?.photoURL ? (
+                          <img src={selectedFriend.photoURL} alt={selectedFriend.displayName} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="font-bold text-emerald-500">{selectedFriend?.displayName.charAt(0)}</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-white">{selectedFriend?.displayName}</p>
+                        <div className="flex items-center gap-3">
+                          <p className="text-[10px] text-emerald-500 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                            Online
+                          </p>
+                          <button 
+                            onClick={() => selectedFriend && unfriend(selectedFriend.uid)}
+                            className="text-[10px] text-red-500 hover:text-red-400 transition-colors font-bold uppercase tracking-wider"
+                          >
+                            Unfriend
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <button 
                   onClick={() => setIsSharingTrade(!isSharingTrade)}
@@ -565,10 +666,24 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
 
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {messages.map((msg, i) => {
+                {(activeView === 'community' ? communityMessages : messages).map((msg, i) => {
                   const isMe = msg.senderUid === user?.uid;
                   return (
                     <div key={msg.id || i} className={cn("flex flex-col", isMe ? "items-end" : "items-start")}>
+                      {!isMe && activeView === 'community' && (
+                        <div className="flex items-center gap-2 mb-1 ml-1">
+                          <div className="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
+                            {msg.senderPhoto ? (
+                              <img src={msg.senderPhoto} alt={msg.senderName} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-[8px] font-bold text-emerald-500">{msg.senderName?.charAt(0)}</span>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-bold text-zinc-500">
+                            {msg.senderName || 'Anonymous'}
+                          </span>
+                        </div>
+                      )}
                       <div className={cn(
                         "max-w-[70%] p-4 rounded-2xl space-y-3",
                         isMe ? "bg-emerald-500 text-white rounded-tr-none" : "bg-zinc-800 text-zinc-200 rounded-tl-none"
@@ -611,11 +726,24 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
                         )}
                       </div>
                       <span className="text-[10px] text-zinc-500 mt-1 px-1">
-                        {format(new Date(msg.timestamp), 'h:mm a')}
+                        {msg.timestamp ? format(new Date(msg.timestamp), 'h:mm a') : ''}
                       </span>
                     </div>
                   );
                 })}
+                
+                {activeView === 'community' && Object.keys(typingUsers).length > 0 && (
+                  <div className="flex items-center gap-2 text-zinc-500 animate-pulse">
+                    <div className="flex gap-1">
+                      <div className="w-1 h-1 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <div className="w-1 h-1 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <div className="w-1 h-1 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                    <span className="text-[10px] font-medium">
+                      {Object.values(typingUsers).map(u => u.displayName).join(', ')} {Object.keys(typingUsers).length === 1 ? 'is' : 'are'} typing...
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Share Trade Picker */}
