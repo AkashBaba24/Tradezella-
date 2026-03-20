@@ -60,6 +60,25 @@ export interface Goal {
   uid: string;
 }
 
+export interface FriendRequest {
+  id?: string;
+  senderUid: string;
+  senderName: string;
+  receiverUid: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  timestamp: string;
+}
+
+export interface Message {
+  id?: string;
+  senderUid: string;
+  receiverUid: string;
+  content: string;
+  timestamp: string;
+  sharedTradeId?: string;
+  sharedTrade?: Partial<Trade>;
+}
+
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',

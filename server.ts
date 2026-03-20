@@ -25,12 +25,9 @@ const PORT = 3000;
 // Check if we should be in development or production mode
 const distPath = path.join(process.cwd(), 'dist');
 const hasDist = fs.existsSync(distPath) && fs.existsSync(path.join(distPath, 'index.html'));
-const isDev = process.env.NODE_ENV !== "production" || !hasDist;
+const isDev = process.env.NODE_ENV !== "production";
 
 console.log(`Mode: ${isDev ? 'Development (Vite)' : 'Production (Static)'}`);
-if (!isDev && !hasDist) {
-  console.warn("WARNING: NODE_ENV is 'production' but 'dist/index.html' is missing. Falling back to development mode.");
-}
 
 // Early test route
 app.get("/api/v3-test", (req, res) => {
@@ -227,9 +224,18 @@ app.get("/api/products", async (req, res) => {
   }
 });
 
-// API route to update or create a product
+// API route to update or create a product (POST for legacy/compatibility)
 app.post("/api/products", async (req, res) => {
-  console.log(`POST /api/products hit (v3) [${new Date().toISOString()}]`);
+  return handleProductSave(req, res);
+});
+
+// API route to update a product (Standard PUT)
+app.put("/api/products", async (req, res) => {
+  return handleProductSave(req, res);
+});
+
+async function handleProductSave(req: any, res: any) {
+  console.log(`${req.method} /api/products hit (v3) [${new Date().toISOString()}]`);
   const { id, name, price, description, duration } = req.body;
   console.log(`Product data:`, { id, name, price, description, duration });
 
@@ -293,9 +299,10 @@ app.post("/api/products", async (req, res) => {
 
     res.json({ message: "Product saved successfully", data: result.data });
   } catch (err) {
+    console.error("Unexpected error in handleProductSave:", err);
     res.status(500).json({ error: "Internal server error" });
   }
-});
+}
 
 // API route to delete a product
 app.delete("/api/products/:id", async (req, res) => {
@@ -325,12 +332,17 @@ app.delete("/api/products/:id", async (req, res) => {
 // Catch-all for undefined API routes to prevent them from returning HTML via Vite
 app.all("/api/*", (req, res) => {
   console.log(`404 API route hit (v3): ${req.method} ${req.url}`);
-  res.status(404).json({ error: `API route not found (v3): ${req.method} ${req.url}` });
+  res.status(404).json({ 
+    error: `API route not found (v3): ${req.method} ${req.url}`,
+    method: req.method,
+    path: req.path,
+    query: req.query
+  });
 });
 
 async function startServer() {
   // Vite middleware for development
-  if (isDev) {
+  if (isDev && process.env.VERCEL !== '1') {
     console.log("Initializing Vite middleware (v3)...");
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
@@ -338,17 +350,29 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (!isDev) {
     console.log(`Serving static files from ${distPath} (v3)...`);
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
+      // Avoid serving index.html for API routes that reached here
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: "API route not found" });
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT} (v3)`);
-  });
+  // Only listen if not running as a Vercel function
+  if (process.env.VERCEL !== '1') {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT} (v3)`);
+    });
+  }
 }
 
-startServer();
+// Export for Vercel
+export default app;
+
+if (process.env.VERCEL !== '1') {
+  startServer();
+}

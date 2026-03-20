@@ -11,7 +11,8 @@ import {
   ShoppingCart,
   Menu,
   X,
-  ShieldCheck
+  ShieldCheck,
+  Users
 } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { cn } from '../utils';
@@ -54,6 +55,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
     { id: 'trades', label: 'Trade Log', icon: History },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'journal', label: 'Journal', icon: BookOpen },
+    { id: 'social', label: 'Social', icon: Users },
     { id: 'checkout', label: 'Join to Premium', icon: ShoppingCart },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -77,9 +79,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
         </button>
       </div>
 
+      {/* Sidebar Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside className={cn(
-        "fixed inset-0 z-40 md:relative md:flex md:flex-col w-full md:w-64 bg-zinc-900/50 border-r border-zinc-800/50 p-4 transition-transform duration-300 md:translate-x-0",
+        "fixed inset-y-0 left-0 z-40 md:relative md:flex md:flex-col w-72 md:w-64 bg-zinc-900 border-r border-zinc-800/50 p-4 transition-transform duration-300 md:translate-x-0",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="hidden md:flex items-center gap-3 mb-10 px-2">

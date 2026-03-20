@@ -75,8 +75,8 @@ const TradeLog: React.FC<TradeLogProps> = ({ trades, onEdit, onDelete, onView, o
       </header>
 
       <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+          <table className="w-full text-left border-collapse min-w-[1000px] md:min-w-0">
             <thead>
               <tr className="border-b border-zinc-800/50 bg-zinc-900/30">
                 <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date</th>
@@ -144,7 +144,7 @@ const TradeLog: React.FC<TradeLogProps> = ({ trades, onEdit, onDelete, onView, o
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-end gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={(e) => { e.stopPropagation(); onView(trade); }}
                         className="p-2 text-zinc-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
@@ -172,7 +172,7 @@ const TradeLog: React.FC<TradeLogProps> = ({ trades, onEdit, onDelete, onView, o
               ))}
               {filteredTrades.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-zinc-500">
+                  <td colSpan={9} className="px-6 py-12 text-center text-zinc-500">
                     No trades found matching your criteria.
                   </td>
                 </tr>

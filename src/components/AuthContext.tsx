@@ -7,7 +7,9 @@ import {
   signOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  updateProfile
+  updateProfile,
+  sendEmailVerification,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -21,6 +23,8 @@ interface AuthContextType {
   signIn: () => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
   signUpWithEmail: (email: string, pass: string, name: string) => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
+  sendVerification: () => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -107,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       await updateProfile(userCredential.user, { displayName: name });
-      
+      await sendEmailVerification(userCredential.user);
       // Profile will be created by the onAuthStateChanged listener
     } catch (err: any) {
       console.error('Email sign up error:', err);
@@ -119,6 +123,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setError(err.message || 'An error occurred during sign up.');
       }
       throw err;
+    }
+  };
+
+  const sendPasswordReset = async (email: string) => {
+    try {
+      setError(null);
+      await sendPasswordResetEmail(auth, email);
+    } catch (err: any) {
+      console.error('Password reset error:', err);
+      setError(err.message || 'An error occurred during password reset.');
+      throw err;
+    }
+  };
+
+  const sendVerification = async () => {
+    if (auth.currentUser) {
+      try {
+        setError(null);
+        await sendEmailVerification(auth.currentUser);
+      } catch (err: any) {
+        console.error('Verification email error:', err);
+        setError(err.message || 'An error occurred sending verification email.');
+        throw err;
+      }
     }
   };
 
@@ -141,6 +169,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signIn, 
       signInWithEmail, 
       signUpWithEmail, 
+      sendPasswordReset,
+      sendVerification,
       logout, 
       clearError 
     }}>

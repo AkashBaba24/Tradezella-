@@ -84,6 +84,31 @@ service cloud.firestore {
     //   - createdAt: timestamp (required)
     //   - expiresAt: timestamp (optional)
     //
+    // Collection: users/{userId}/friends
+    // Document ID: friendId (matches friend's auth.uid)
+    // Fields:
+    //   - uid: string (required)
+    //   - addedAt: timestamp (required)
+    //
+    // Collection: friendRequests
+    // Document ID: requestId
+    // Fields:
+    //   - senderUid: string (required)
+    //   - senderName: string (required)
+    //   - receiverUid: string (required)
+    //   - status: string (required, enum: ["pending", "accepted", "rejected"])
+    //   - timestamp: string (required)
+    //
+    // Collection: messages
+    // Document ID: messageId
+    // Fields:
+    //   - senderUid: string (required)
+    //   - receiverUid: string (required)
+    //   - content: string (required)
+    //   - timestamp: string (required)
+    //   - sharedTradeId: string (optional)
+    //   - sharedTrade: map (optional)
+    //
     // ===============================================================
 
     // ===============================================================
@@ -172,15 +197,37 @@ service cloud.firestore {
              data.createdAt is timestamp;
     }
 
+    function isValidFriendRequest(data) {
+      return hasRequiredFields(['senderUid', 'senderName', 'receiverUid', 'status', 'timestamp']) &&
+             data.senderUid == request.auth.uid &&
+             data.status == 'pending' &&
+             data.senderUid is string && data.receiverUid is string &&
+             data.senderName is string && data.timestamp is string;
+    }
+
+    function isValidMessage(data) {
+      return hasRequiredFields(['senderUid', 'receiverUid', 'content', 'timestamp']) &&
+             data.senderUid == request.auth.uid &&
+             data.senderUid is string && data.receiverUid is string &&
+             data.content is string && data.timestamp is string;
+    }
+
     // ===============================================================
     // Match Rules
     // ===============================================================
 
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      allow read: if isAuthenticated(); // Allow reading profiles for social features
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isAdmin());
       allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
       allow delete: if isAdmin();
+
+      match /friends/{friendId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isAuthenticated() && (isOwner(userId) || request.auth.uid == get(/databases/$(database)/documents/friendRequests/$(request.resource.data.requestId)).data.senderUid);
+        // Simplified for now: allow owner to manage their friends
+        allow write: if isOwner(userId) || isAdmin();
+      }
 
       match /trades/{tradeId} {
         allow read: if isOwner(userId) || isAdmin();
@@ -202,6 +249,20 @@ service cloud.firestore {
         allow update: if isOwner(userId) && isValidGoal(request.resource.data);
         allow delete: if isOwner(userId) || isAdmin();
       }
+    }
+
+    match /friendRequests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.senderUid == request.auth.uid || resource.data.receiverUid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidFriendRequest(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.receiverUid == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.senderUid == request.auth.uid || isAdmin());
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && (resource.data.senderUid == request.auth.uid || resource.data.receiverUid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidMessage(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAuthenticated() && (resource.data.senderUid == request.auth.uid || isAdmin());
     }
 
     match /plans/{planId} {

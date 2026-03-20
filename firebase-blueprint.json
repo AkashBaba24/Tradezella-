@@ -101,6 +101,33 @@
         "expiresAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "planId", "amount", "status", "createdAt"]
+    },
+    "FriendRequest": {
+      "title": "Friend Request",
+      "description": "A request to connect with another user.",
+      "type": "object",
+      "properties": {
+        "fromUid": { "type": "string" },
+        "fromName": { "type": "string" },
+        "toUid": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fromUid", "toUid", "status", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A private message between friends.",
+      "type": "object",
+      "properties": {
+        "fromUid": { "type": "string" },
+        "toUid": { "type": "string" },
+        "content": { "type": "string" },
+        "tradeId": { "type": "string", "description": "Optional ID of a shared trade." },
+        "tradeOwnerUid": { "type": "string", "description": "UID of the trade owner." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fromUid", "toUid", "content", "createdAt"]
     }
   },
   "firestore": {
@@ -119,6 +146,18 @@
     "/users/{userId}/goals/{goalId}": {
       "schema": "Goal",
       "description": "User's trading goals."
+    },
+    "/users/{userId}/friends/{friendId}": {
+      "schema": { "type": "object", "properties": { "uid": { "type": "string" }, "displayName": { "type": "string" }, "addedAt": { "type": "string", "format": "date-time" } } },
+      "description": "User's friends list."
+    },
+    "/friendRequests/{requestId}": {
+      "schema": "FriendRequest",
+      "description": "Global friend requests."
+    },
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Private messages."
     },
     "/plans/{planId}": {
       "schema": "SubscriptionPlan",

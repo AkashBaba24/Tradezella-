@@ -157,15 +157,19 @@ const AdminDashboard: React.FC = () => {
     const timestamp = Date.now();
     try {
       const response = await fetch(`/api/products?t=${timestamp}`, {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...product, price: newPrice }),
       });
 
-      if (!response.ok) throw new Error(`Failed to update price: ${response.status}`);
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Failed to update price: ${response.status} - ${errText}`);
+      }
       
       setProducts(prev => prev.map(p => p.id === product.id ? { ...p, price: newPrice } : p));
     } catch (err) {
+      console.error('Price update error:', err);
       alert(err instanceof Error ? err.message : 'Failed to update price');
     } finally {
       setActionLoading(null);
@@ -176,20 +180,26 @@ const AdminDashboard: React.FC = () => {
     e.preventDefault();
     setActionLoading('product-save');
     const timestamp = Date.now();
+    const isUpdate = !!productForm.id;
+    
     try {
       const response = await fetch(`/api/products?t=${timestamp}`, {
-        method: 'POST',
+        method: isUpdate ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(productForm),
       });
 
-      if (!response.ok) throw new Error(`Failed to save product: ${response.status}`);
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Failed to save product: ${response.status} - ${errText}`);
+      }
       
       await fetchProducts();
       setIsAddingProduct(false);
       setEditingProduct(null);
       setProductForm({ name: '', price: 0, duration: '30 Days', description: '' });
     } catch (err) {
+      console.error('Product save error:', err);
       alert(err instanceof Error ? err.message : 'Failed to save product');
     } finally {
       setActionLoading(null);
@@ -277,11 +287,11 @@ const AdminDashboard: React.FC = () => {
       </header>
 
       {/* Tabs */}
-      <div className="flex gap-4 border-b border-zinc-800">
+      <div className="flex gap-4 border-b border-zinc-800 overflow-x-auto scrollbar-hide">
         <button
           onClick={() => setActiveTab('orders')}
           className={cn(
-            "pb-4 px-2 font-bold transition-all relative",
+            "pb-4 px-2 font-bold transition-all relative whitespace-nowrap",
             activeTab === 'orders' ? "text-emerald-500" : "text-zinc-500 hover:text-zinc-300"
           )}
         >
@@ -291,7 +301,7 @@ const AdminDashboard: React.FC = () => {
         <button
           onClick={() => setActiveTab('products')}
           className={cn(
-            "pb-4 px-2 font-bold transition-all relative",
+            "pb-4 px-2 font-bold transition-all relative whitespace-nowrap",
             activeTab === 'products' ? "text-emerald-500" : "text-zinc-500 hover:text-zinc-300"
           )}
         >

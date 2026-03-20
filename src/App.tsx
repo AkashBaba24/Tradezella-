@@ -14,16 +14,18 @@ import AdminDashboard from './components/AdminDashboard';
 import CalendarView from './components/CalendarView';
 import TradeDetails from './components/TradeDetails';
 import FullScreenImage from './components/FullScreenImage';
+import Social from './components/Social';
 import { Trade } from './types';
 import { TrendingUp, Shield, BarChart3, Zap, ArrowRight } from 'lucide-react';
 
 const LandingPage: React.FC = () => {
-  const { signIn, signInWithEmail, signUpWithEmail, error, clearError } = useAuth();
+  const { signIn, signInWithEmail, signUpWithEmail, sendPasswordReset, error, clearError } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const [authMode, setAuthMode] = useState<'google' | 'email-signin' | 'email-signup'>('google');
+  const [authMode, setAuthMode] = useState<'google' | 'email-signin' | 'email-signup' | 'forgot-password'>('google');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true);
@@ -34,11 +36,18 @@ const LandingPage: React.FC = () => {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSigningIn(true);
+    setSuccessMessage(null);
     try {
       if (authMode === 'email-signin') {
         await signInWithEmail(email, password);
-      } else {
+      } else if (authMode === 'email-signup') {
         await signUpWithEmail(email, password, name);
+        setSuccessMessage('Account created! Please check your email for a verification link.');
+        setAuthMode('email-signin');
+      } else if (authMode === 'forgot-password') {
+        await sendPasswordReset(email);
+        setSuccessMessage('Password reset email sent! Please check your inbox.');
+        setAuthMode('email-signin');
       }
     } catch (err) {
       // Error is handled in AuthContext
@@ -49,6 +58,18 @@ const LandingPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      {/* Success Message */}
+      {successMessage && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 p-4 rounded-2xl flex items-center justify-between gap-4 backdrop-blur-xl">
+            <p className="text-sm font-medium">{successMessage}</p>
+            <button onClick={() => setSuccessMessage(null)} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
+              <Zap size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Error Message */}
       {error && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md animate-in fade-in slide-in-from-top-4 duration-300">
@@ -134,7 +155,7 @@ const LandingPage: React.FC = () => {
           ) : (
             <form onSubmit={handleEmailAuth} className="space-y-4 text-left">
               <h2 className="text-2xl font-bold text-center mb-6">
-                {authMode === 'email-signin' ? 'Welcome Back' : 'Create Account'}
+                {authMode === 'email-signin' ? 'Welcome Back' : authMode === 'email-signup' ? 'Create Account' : 'Reset Password'}
               </h2>
               
               {authMode === 'email-signup' && (
@@ -163,17 +184,30 @@ const LandingPage: React.FC = () => {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider ml-1">Password</label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
-                />
-              </div>
+              {authMode !== 'forgot-password' && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between px-1">
+                    <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Password</label>
+                    {authMode === 'email-signin' && (
+                      <button 
+                        type="button"
+                        onClick={() => setAuthMode('forgot-password')}
+                        className="text-xs text-emerald-500 hover:text-emerald-400 font-medium"
+                      >
+                        Forgot Password?
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
+                  />
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -183,7 +217,7 @@ const LandingPage: React.FC = () => {
                 {isSigningIn ? (
                   <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                 ) : (
-                  authMode === 'email-signin' ? 'Sign In' : 'Create Account'
+                  authMode === 'email-signin' ? 'Sign In' : authMode === 'email-signup' ? 'Create Account' : 'Send Reset Link'
                 )}
               </button>
 
@@ -193,7 +227,7 @@ const LandingPage: React.FC = () => {
                   onClick={() => setAuthMode(authMode === 'email-signin' ? 'email-signup' : 'email-signin')}
                   className="text-sm text-zinc-400 hover:text-white transition-colors"
                 >
-                  {authMode === 'email-signin' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+                  {authMode === 'email-signin' ? "Don't have an account? Sign Up" : authMode === 'email-signup' ? "Already have an account? Sign In" : "Back to Sign In"}
                 </button>
                 <button
                   type="button"
@@ -300,6 +334,21 @@ const AppContent: React.FC = () => {
       setActiveTab={setActiveTab}
       onAddTrade={() => { setEditingTrade(null); setIsTradeFormOpen(true); }}
     >
+      {!user.emailVerified && (
+        <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center gap-3 text-amber-500">
+            <Zap size={20} />
+            <p className="text-sm font-medium">Please verify your email address to access all features. Check your inbox for the verification link.</p>
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-amber-500 text-white text-xs font-bold rounded-xl hover:bg-amber-600 transition-all active:scale-95"
+          >
+            I've Verified
+          </button>
+        </div>
+      )}
+
       {activeTab === 'dashboard' && <Dashboard trades={trades} />}
       {activeTab === 'trades' && (
         <TradeLog 
@@ -319,6 +368,7 @@ const AppContent: React.FC = () => {
         />
       )}
       {activeTab === 'journal' && <Journal />}
+      {activeTab === 'social' && <Social trades={trades} />}
       {activeTab === 'checkout' && <Checkout />}
       {activeTab === 'admin' && <AdminDashboard />}
       {activeTab === 'settings' && <Settings />}

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build",
+    "start": "node server.ts",
     "build:netlify": "npm run build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
