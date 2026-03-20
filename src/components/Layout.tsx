@@ -129,7 +129,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{profile?.displayName}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-medium text-white truncate">{profile?.displayName}</p>
+                {profile?.isPremium && (
+                  <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase rounded-full border border-emerald-500/20">
+                    Pro
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-zinc-500 truncate">{profile?.email}</p>
             </div>
           </div>

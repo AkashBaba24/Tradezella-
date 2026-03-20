@@ -71,20 +71,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async () => {
+    if (loading) return;
     try {
       setError(null);
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
     } catch (err: any) {
-      console.error('Sign in error:', err);
       if (err.code === 'auth/popup-blocked') {
         setError('The sign-in popup was blocked by your browser. Please allow popups for this site.');
-      } else if (err.code === 'auth/cancelled-popup-request') {
+        console.error('Sign in error:', err);
+      } else if (err.code === 'auth/cancelled-popup-request' || err.code === 'auth/popup-closed-by-user') {
         // User closed the popup, no need to show error
+        console.log('User cancelled sign-in popup');
       } else if (err.code === 'auth/unauthorized-domain') {
         setError('This domain is not authorized for Google Sign-In. Please check your Firebase Console settings.');
+        console.error('Sign in error:', err);
       } else {
         setError(err.message || 'An unexpected error occurred during sign in.');
+        console.error('Sign in error:', err);
       }
     }
   };

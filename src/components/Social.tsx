@@ -24,7 +24,8 @@ import {
   limit,
   Timestamp,
   serverTimestamp,
-  deleteDoc
+  deleteDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { db, handleFirestoreError } from '../firebase';
 import { useAuth } from './AuthContext';
@@ -45,11 +46,28 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
+  const [allRequests, setAllRequests] = useState<FriendRequest[]>([]);
   const [selectedFriend, setSelectedFriend] = useState<UserProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSharingTrade, setIsSharingTrade] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Fetch All Requests (to check for duplicates)
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'friendRequests'),
+      where('status', '==', 'pending')
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FriendRequest));
+      setAllRequests(requests);
+      setIncomingRequests(requests.filter(r => r.receiverUid === user.uid));
+      setOutgoingRequests(requests.filter(r => r.senderUid === user.uid));
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   // Fetch Friends
   useEffect(() => {
@@ -75,33 +93,8 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
     return () => unsubscribe();
   }, [user]);
 
-  // Fetch Incoming Requests
-  useEffect(() => {
-    if (!user) return;
-    const q = query(
-      collection(db, 'friendRequests'),
-      where('receiverUid', '==', user.uid),
-      where('status', '==', 'pending')
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setIncomingRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FriendRequest)));
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  // Fetch Outgoing Requests
-  useEffect(() => {
-    if (!user) return;
-    const q = query(
-      collection(db, 'friendRequests'),
-      where('senderUid', '==', user.uid),
-      where('status', '==', 'pending')
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setOutgoingRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FriendRequest)));
-    });
-    return () => unsubscribe();
-  }, [user]);
+  // Fetch Incoming Requests - REMOVED (combined above)
+  // Fetch Outgoing Requests - REMOVED (combined above)
 
   // Fetch Messages for Selected Friend
   useEffect(() => {
@@ -155,6 +148,24 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
 
   const sendFriendRequest = async (receiver: UserProfile) => {
     if (!user || !profile) return;
+    
+    // Check if request already exists
+    const existing = allRequests.find(r => 
+      (r.senderUid === user.uid && r.receiverUid === receiver.uid) ||
+      (r.senderUid === receiver.uid && r.receiverUid === user.uid)
+    );
+    
+    if (existing) {
+      alert('A friend request is already pending.');
+      return;
+    }
+
+    // Check if already friends
+    if (friends.some(f => f.uid === receiver.uid)) {
+      alert('You are already friends.');
+      return;
+    }
+
     const path = 'friendRequests';
     try {
       await addDoc(collection(db, path), {
@@ -164,29 +175,59 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
         status: 'pending',
         timestamp: new Date().toISOString()
       });
-      setSearchResults(prev => prev.filter(p => p.uid !== receiver.uid));
+      // No need to filter search results here, UI will update based on state
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, path);
+    }
+  };
+
+  const unfriend = async (friendUid: string) => {
+    if (!user || !confirm('Are you sure you want to unfriend this user?')) return;
+    
+    try {
+      const batch = writeBatch(db);
+      
+      // 1. Remove from my friends
+      batch.delete(doc(db, 'users', user.uid, 'friends', friendUid));
+      
+      // 2. Remove from their friends
+      batch.delete(doc(db, 'users', friendUid, 'friends', user.uid));
+      
+      await batch.commit();
+      if (selectedFriend?.uid === friendUid) {
+        setSelectedFriend(null);
+      }
+    } catch (error) {
+      console.error('Unfriend error:', error);
     }
   };
 
   const acceptRequest = async (request: FriendRequest) => {
     if (!user) return;
     try {
-      // Update request status
-      await updateDoc(doc(db, 'friendRequests', request.id!), {
-        status: 'accepted'
+      const batch = writeBatch(db);
+
+      // 1. Update request status to accepted
+      const requestRef = doc(db, 'friendRequests', request.id!);
+      batch.update(requestRef, { status: 'accepted' });
+
+      // 2. Add sender to current user's friends list
+      const myFriendRef = doc(collection(db, 'users', user.uid, 'friends'), request.senderUid);
+      batch.set(myFriendRef, {
+        uid: request.senderUid,
+        addedAt: serverTimestamp(),
+        requestId: request.id
       });
 
-      // Add to both users' friends list
-      await addDoc(collection(db, 'users', user.uid, 'friends'), {
-        uid: request.senderUid,
-        addedAt: serverTimestamp()
-      });
-      await addDoc(collection(db, 'users', request.senderUid, 'friends'), {
+      // 3. Add current user to sender's friends list
+      const theirFriendRef = doc(collection(db, 'users', request.senderUid, 'friends'), user.uid);
+      batch.set(theirFriendRef, {
         uid: user.uid,
-        addedAt: serverTimestamp()
+        addedAt: serverTimestamp(),
+        requestId: request.id
       });
+
+      await batch.commit();
     } catch (error) {
       console.error('Accept request error:', error);
     }
@@ -373,36 +414,62 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
               </div>
             )}
 
-            {activeView === 'search' && (
+              {activeView === 'search' && (
               <div className="space-y-2">
                 {isSearching ? (
                   <div className="flex justify-center py-8">
                     <div className="w-6 h-6 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
                   </div>
                 ) : (
-                  searchResults.map(result => (
-                    <div key={result.uid} className="flex items-center justify-between p-3 hover:bg-zinc-800/50 rounded-2xl transition-all">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
-                          {result.photoURL ? (
-                            <img src={result.photoURL} alt={result.displayName} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="font-bold text-emerald-500">{result.displayName.charAt(0)}</span>
-                          )}
+                  searchResults.map(result => {
+                    const isFriend = friends.some(f => f.uid === result.uid);
+                    const isPendingIncoming = incomingRequests.some(r => r.senderUid === result.uid);
+                    const isPendingOutgoing = outgoingRequests.some(r => r.receiverUid === result.uid);
+
+                    return (
+                      <div key={result.uid} className="flex items-center justify-between p-3 hover:bg-zinc-800/50 rounded-2xl transition-all">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
+                            {result.photoURL ? (
+                              <img src={result.photoURL} alt={result.displayName} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="font-bold text-emerald-500">{result.displayName.charAt(0)}</span>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-white truncate">{result.displayName}</p>
+                            <p className="text-xs text-zinc-500 truncate">{result.email}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">{result.displayName}</p>
-                          <p className="text-xs text-zinc-500 truncate">{result.email}</p>
-                        </div>
+                        
+                        {isFriend ? (
+                          <div className="flex items-center gap-1 text-emerald-500 text-[10px] font-bold uppercase bg-emerald-500/10 px-2 py-1 rounded-lg">
+                            <UserCheck size={14} />
+                            Friend
+                          </div>
+                        ) : isPendingIncoming ? (
+                          <button
+                            onClick={() => setActiveView('requests')}
+                            className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded-lg hover:bg-amber-500/20 transition-all"
+                          >
+                            Accept Request
+                          </button>
+                        ) : isPendingOutgoing ? (
+                          <div className="text-[10px] font-bold text-zinc-500 bg-zinc-800 px-2 py-1 rounded-lg flex items-center gap-1">
+                            <Clock size={14} />
+                            Pending
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => sendFriendRequest(result)}
+                            className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl transition-all"
+                          >
+                            <UserPlus size={18} />
+                          </button>
+                        )}
                       </div>
-                      <button
-                        onClick={() => sendFriendRequest(result)}
-                        className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl transition-all"
-                      >
-                        <UserPlus size={18} />
-                      </button>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             )}
@@ -425,10 +492,18 @@ const Social: React.FC<SocialProps> = ({ trades }) => {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-white">{selectedFriend.displayName}</p>
-                    <p className="text-[10px] text-emerald-500 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                      Online
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <p className="text-[10px] text-emerald-500 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                        Online
+                      </p>
+                      <button 
+                        onClick={() => unfriend(selectedFriend.uid)}
+                        className="text-[10px] text-red-500 hover:text-red-400 transition-colors font-bold uppercase tracking-wider"
+                      >
+                        Unfriend
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <button 

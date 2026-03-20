@@ -2,11 +2,23 @@ import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import path from "path";
 import dotenv from "dotenv";
-
 import fs from "fs";
+import admin from "firebase-admin";
 
 console.log("Starting server.ts...");
 dotenv.config();
+
+// Initialize Firebase Admin
+const firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');
+if (fs.existsSync(firebaseConfigPath)) {
+  const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf8'));
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      projectId: firebaseConfig.projectId,
+    });
+  }
+}
+const firestore = admin.firestore();
 
 // Catch unhandled errors to prevent silent crashes
 process.on('uncaughtException', (err) => {
@@ -175,6 +187,18 @@ app.patch("/api/orders/:id", async (req, res) => {
   }
 
   try {
+    // 1. Get the current order first to know the details
+    const { data: orderData, error: fetchError } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (fetchError || !orderData) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // 2. Update status in Supabase
     const { data, error } = await supabase
       .from("orders")
       .update({ status })
@@ -185,11 +209,77 @@ app.patch("/api/orders/:id", async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    // 3. If approved, activate subscription in Firestore
+    if (status === 'approved') {
+      try {
+        const userEmail = orderData.customer_email.toLowerCase();
+        const productName = orderData.product;
+        
+        // Find user in Firestore
+        const usersRef = firestore.collection('users');
+        const userSnapshot = await usersRef.where('email', '==', userEmail).get();
+        
+        if (!userSnapshot.empty) {
+          const userDoc = userSnapshot.docs[0];
+          const userData = userDoc.data();
+          
+          // Get product duration from Supabase
+          const { data: productData } = await supabase
+            .from("products")
+            .select("duration")
+            .eq("name", productName)
+            .single();
+            
+          const durationStr = productData?.duration || "30 Days";
+          const daysToAdd = parseDurationToDays(durationStr);
+          
+          const now = new Date();
+          let currentExpiry = userData.subscriptionExpiry ? new Date(userData.subscriptionExpiry) : now;
+          
+          // If current expiry is in the past, start from now
+          if (currentExpiry < now) {
+            currentExpiry = now;
+          }
+          
+          const newExpiry = new Date(currentExpiry.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+          
+          const purchasedPlans = userData.purchasedPlans || [];
+          if (!purchasedPlans.includes(productName)) {
+            purchasedPlans.push(productName);
+          }
+          
+          await userDoc.ref.update({
+            subscriptionPlan: productName,
+            subscriptionExpiry: newExpiry.toISOString(),
+            purchasedPlans: purchasedPlans,
+            isPremium: true
+          });
+          
+          console.log(`Subscription activated for ${userEmail}: ${productName}, expires ${newExpiry.toISOString()}`);
+        } else {
+          console.warn(`User with email ${userEmail} not found in Firestore. Subscription not activated.`);
+        }
+      } catch (fsError) {
+        console.error("Error activating subscription in Firestore:", fsError);
+        // We don't return error here because the Supabase update was successful
+      }
+    }
+
     res.json({ message: "Order updated successfully", data });
   } catch (err) {
+    console.error("Unexpected error in PATCH /api/orders/:id:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+function parseDurationToDays(duration: string): number {
+  const match = duration.match(/(\d+)\s*Days?/i);
+  if (match) return parseInt(match[1]);
+  if (duration.toLowerCase().includes('month')) return 30;
+  if (duration.toLowerCase().includes('year')) return 365;
+  if (duration.toLowerCase().includes('week')) return 7;
+  return 30; // Default
+}
 
 // API route to fetch all products
 app.get("/api/products", async (req, res) => {

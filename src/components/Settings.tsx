@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { User, Shield, Bell, Globe, Save, CheckCircle } from 'lucide-react';
+import { User, Shield, Bell, Globe, Save, CheckCircle, CreditCard } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { cn } from '../utils';
+import { format } from 'date-fns';
 
 const Settings: React.FC = () => {
   const { profile, user } = useAuth();
@@ -83,6 +84,63 @@ const Settings: React.FC = () => {
         {/* Content */}
         <div className="lg:col-span-2 space-y-6">
           <form onSubmit={handleSave} className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-8 space-y-8">
+            <section className="space-y-6">
+              <h3 className="text-lg font-semibold text-white border-b border-zinc-800 pb-4">Subscription</h3>
+              <div className={cn(
+                "rounded-2xl p-6 space-y-4 border transition-all",
+                profile?.isPremium 
+                  ? "bg-emerald-500/5 border-emerald-500/20" 
+                  : "bg-zinc-900 border-zinc-800"
+              )}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "w-12 h-12 rounded-xl flex items-center justify-center",
+                      profile?.isPremium ? "bg-emerald-500/10 text-emerald-500" : "bg-zinc-800 text-zinc-500"
+                    )}>
+                      <CreditCard size={24} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Current Plan</p>
+                      <p className={cn(
+                        "text-xl font-black",
+                        profile?.isPremium ? "text-emerald-500" : "text-white"
+                      )}>
+                        {profile?.subscriptionPlan || 'Free Plan'}
+                      </p>
+                    </div>
+                  </div>
+                  {profile?.isPremium && (
+                    <div className="text-right">
+                      <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Expires On</p>
+                      <p className="text-sm font-bold text-white">
+                        {profile.subscriptionExpiry ? format(new Date(profile.subscriptionExpiry), 'MMM dd, yyyy') : 'N/A'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                {profile?.purchasedPlans && profile.purchasedPlans.length > 0 && (
+                  <div className="pt-4 border-t border-zinc-800/50">
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Order History</p>
+                    <div className="flex flex-wrap gap-2">
+                      {profile.purchasedPlans.map((plan, idx) => (
+                        <span key={idx} className="px-3 py-1 bg-zinc-950 text-zinc-400 text-[10px] font-bold rounded-full border border-zinc-800">
+                          {plan}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {!profile?.isPremium && (
+                  <p className="text-xs text-zinc-500 italic">
+                    Upgrade to Premium to unlock advanced social features and unlimited trade sharing.
+                  </p>
+                )}
+              </div>
+            </section>
+
             <section className="space-y-6">
               <h3 className="text-lg font-semibold text-white border-b border-zinc-800 pb-4">Personal Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

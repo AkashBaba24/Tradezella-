@@ -224,7 +224,16 @@ service cloud.firestore {
 
       match /friends/{friendId} {
         allow read: if isOwner(userId) || isAdmin();
-        allow create: if isAuthenticated() && (isOwner(userId) || request.auth.uid == get(/databases/$(database)/documents/friendRequests/$(request.resource.data.requestId)).data.senderUid);
+        allow create: if isAuthenticated() && (
+          isOwner(userId) || 
+          (
+            request.resource.data.uid == request.auth.uid && 
+            existsAfter(/databases/$(database)/documents/friendRequests/$(request.resource.data.requestId)) && 
+            getAfter(/databases/$(database)/documents/friendRequests/$(request.resource.data.requestId)).data.status == 'accepted' &&
+            (getAfter(/databases/$(database)/documents/friendRequests/$(request.resource.data.requestId)).data.receiverUid == request.auth.uid || 
+             getAfter(/databases/$(database)/documents/friendRequests/$(request.resource.data.requestId)).data.senderUid == request.auth.uid)
+          )
+        );
         // Simplified for now: allow owner to manage their friends
         allow write: if isOwner(userId) || isAdmin();
       }

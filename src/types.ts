@@ -13,6 +13,10 @@ export interface UserProfile {
   dailyProfitTarget?: number;
   weeklyProfitTarget?: number;
   role?: UserRole;
+  subscriptionPlan?: string;
+  subscriptionExpiry?: string;
+  purchasedPlans?: string[];
+  isPremium?: boolean;
 }
 
 export interface Trade {
