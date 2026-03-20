@@ -17,6 +17,7 @@ import FullScreenImage from './components/FullScreenImage';
 import Social from './components/Social';
 import { Trade } from './types';
 import { TrendingUp, Shield, BarChart3, Zap, ArrowRight } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 
 const LandingPage: React.FC = () => {
   const { signIn, signInWithEmail, signUpWithEmail, sendPasswordReset, error, clearError } = useAuth();
@@ -406,6 +407,7 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <AppContent />
+        <Analytics />
       </AuthProvider>
     </ErrorBoundary>
   );
